@@ -254,7 +254,14 @@ impl AudioEngine {
             if let Ok(file) = File::open(&track.path) {
                 let reader = BufReader::new(file);
                 if let Ok(mut decoder) = Decoder::new(reader) {
-                    let _ = decoder.try_seek(target);
+                    if decoder.try_seek(target).is_err() {
+                        let sr = decoder.sample_rate();
+                        let ch = decoder.channels();
+                        let to_skip = (target.as_secs_f64() * sr as f64 * ch as f64) as usize;
+                        if to_skip > 0 {
+                            let _ = decoder.nth(to_skip - 1);
+                        }
+                    }
                     let source = decoder.convert_samples::<f32>();
                     let vis_source = VisualizerSource::new(source, self.samples_buffer.clone());
 
@@ -263,6 +270,7 @@ impl AudioEngine {
                         if let Some(ref sink) = self.sink {
                             sink.set_volume(if self.is_muted { 0.0 } else { self.volume });
                             sink.append(vis_source);
+                            self.seek_fallback_offset = target;
                             if was_playing {
                                 sink.play();
                                 self.is_playing = true;
@@ -279,7 +287,7 @@ impl AudioEngine {
 
     pub fn get_position(&self) -> Duration {
         if let Some(ref sink) = self.sink {
-            sink.get_pos()
+            sink.get_pos() + self.seek_fallback_offset
         } else {
             Duration::ZERO
         }

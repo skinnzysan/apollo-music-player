@@ -512,12 +512,14 @@ impl App {
                         }
                         ArtistTreeRow::TrackItem { track, .. } => {
                             // Collect tracks from the same album as queue
-                            let album_tracks: Vec<Track> = self
+                            let mut album_tracks: Vec<Track> = self
                                 .tracks
                                 .iter()
                                 .filter(|t| t.artist == track.artist && t.album == track.album)
                                 .cloned()
                                 .collect();
+                            
+                            album_tracks.sort_by_key(|t| (t.track_number.unwrap_or(0), t.title.clone()));
 
                             let queue = if !album_tracks.is_empty() {
                                 album_tracks
@@ -548,12 +550,14 @@ impl App {
                             }
                         }
                         AlbumTreeRow::TrackItem { track, .. } => {
-                            let album_tracks: Vec<Track> = self
+                            let mut album_tracks: Vec<Track> = self
                                 .tracks
                                 .iter()
                                 .filter(|t| t.album == track.album)
                                 .cloned()
                                 .collect();
+
+                            album_tracks.sort_by_key(|t| (t.track_number.unwrap_or(0), t.title.clone()));
 
                             let queue = if !album_tracks.is_empty() {
                                 album_tracks
@@ -591,12 +595,17 @@ impl App {
                             }
                         }
                         GenreTreeRow::TrackItem { track, .. } => {
-                            let genre_tracks: Vec<Track> = self
+                            let mut genre_tracks: Vec<Track> = self
                                 .tracks
                                 .iter()
-                                .filter(|t| t.genre == track.genre)
+                                .filter(|t| {
+                                    t.genre.as_ref().map(|s| s.trim()).filter(|s| !s.is_empty()).unwrap_or("Nieokreślony") ==
+                                        track.genre.as_ref().map(|s| s.trim()).filter(|s| !s.is_empty()).unwrap_or("Nieokreślony")
+                                })
                                 .cloned()
                                 .collect();
+
+                            genre_tracks.sort_by_key(|t| (t.artist.clone(), t.album.clone(), t.track_number.unwrap_or(0), t.title.clone()));
 
                             let queue = if !genre_tracks.is_empty() {
                                 genre_tracks
