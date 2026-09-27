@@ -3,7 +3,7 @@ use ratatui::{
     style::{Color, Modifier, Style},
     text::{Line, Span},
     widgets::{
-        Block, BorderType, Borders, List, ListItem, Paragraph, Row, Table, Tabs,
+        Block, BorderType, Borders, List, ListItem, Paragraph, Row, Table, Tabs, Wrap,
     },
     Frame,
 };
@@ -41,13 +41,13 @@ pub fn draw_ui(frame: &mut Frame, app: &mut App) {
             Constraint::Min(8),            // Library panel
             Constraint::Length(vis_height), // Visualizer
             Constraint::Length(5),         // Now Playing
-            Constraint::Length(1),         // Hotkeys / status footer
+            Constraint::Length(2),         // Hotkeys / status footer
         ]
     } else {
         vec![
             Constraint::Min(8),            // Library panel
             Constraint::Length(5),         // Now Playing
-            Constraint::Length(1),         // Hotkeys / status footer
+            Constraint::Length(2),         // Hotkeys / status footer
         ]
     };
 
@@ -759,24 +759,24 @@ fn render_footer(frame: &mut Frame, app: &App, area: Rect) {
     }
 
     let hotkeys = Line::from(vec![
-        Span::styled("[Spacja]", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
+        Span::styled("[ Spacja ]", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
         Span::styled(" Pauza/Play | ", Style::default().fg(Color::White)),
-        Span::styled("[n]/[p]", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
-        Span::styled(" Nast/Poprz | ", Style::default().fg(Color::White)),
-        Span::styled("[h]/[l]", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
+        Span::styled("[ z / x ]", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
+        Span::styled(" Poprz/Nast | ", Style::default().fg(Color::White)),
+        Span::styled("[ < / > ]", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
         Span::styled(" Skok ±5s | ", Style::default().fg(Color::White)),
-        Span::styled("[s]", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
+        Span::styled("[ s ]", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
         Span::styled(" Shuffle | ", Style::default().fg(Color::White)),
-        Span::styled("[r]", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
+        Span::styled("[ l ]", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
         Span::styled(" Pętla | ", Style::default().fg(Color::White)),
-        Span::styled("[+/-]", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
+        Span::styled("[ + / - ]", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
         Span::styled(" Głośność | ", Style::default().fg(Color::White)),
-        Span::styled("[/]", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
+        Span::styled("[ / ]", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
         Span::styled(" Szukaj | ", Style::default().fg(Color::White)),
-        Span::styled("[q]", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
+        Span::styled("[ q ]", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
         Span::styled(" Wyjście", Style::default().fg(Color::White)),
     ]);
 
-    let p = Paragraph::new(hotkeys);
+    let p = Paragraph::new(hotkeys).wrap(Wrap { trim: true });
     frame.render_widget(p, area);
 }

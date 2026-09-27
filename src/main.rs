@@ -51,14 +51,14 @@ fn main() -> io::Result<()> {
             println!();
             println!("SKRÓTY KLAWISZOWE:");
             println!("    Spacja           Pauza / Wznów (Play/Pause)");
-            println!("    n / p            Następny / Poprzedni utwór");
+            println!("    z / x, ← / →     Poprzedni / Następny utwór");
             println!("    j / k, ↑ / ↓     Poruszanie się po liście");
             println!("    Enter            Odtwórz utwór / Rozwiń gałąź");
-            println!("    h / l, ← / →     Przewijanie -5s / +5s");
-            println!("    + / -, ] / [     Głośność ±5%");
+            println!("    < / >            Przewijanie -5s / +5s");
+            println!("    + / = / -        Głośność ±5%");
             println!("    m                Wyciszenie (Mute)");
             println!("    s                Mieszanie losowe (Shuffle)");
-            println!("    r                Zapętlenie (Brak / Utwór / Kolejka)");
+            println!("    l                Zapętlenie (Brak / Utwór / Kolejka)");
             println!("    v                Tryb wizualizatora (Spectrum / Waveform)");
             println!("    F1 - F5          Zakładki (Wykonawcy, Albumy, Wszystkie, Gatunki, Eksplorator)");
             println!("    Tab              Przełącz aktywny panel");
@@ -137,10 +137,10 @@ fn main() -> io::Result<()> {
                             KeyCode::Char(' ') => {
                                 app.audio.toggle_play_pause();
                             }
-                            KeyCode::Char('n') => {
+                            KeyCode::Char('x') | KeyCode::Right => {
                                 app.next_track(true);
                             }
-                            KeyCode::Char('p') => {
+                            KeyCode::Char('z') | KeyCode::Left => {
                                 app.previous_track();
                             }
                             KeyCode::Char('j') | KeyCode::Down => {
@@ -152,20 +152,20 @@ fn main() -> io::Result<()> {
                             KeyCode::Enter => {
                                 app.handle_enter_key();
                             }
-                            KeyCode::Char('h') | KeyCode::Left => {
+                            KeyCode::Char('<') => {
                                 app.audio.seek_relative(-5);
                                 app.set_status("Przewinięto: -5s");
                             }
-                            KeyCode::Char('l') | KeyCode::Right => {
+                            KeyCode::Char('>') => {
                                 app.audio.seek_relative(5);
                                 app.set_status("Przewinięto: +5s");
                             }
-                            KeyCode::Char('+') | KeyCode::Char(']') | KeyCode::Char('=') => {
+                            KeyCode::Char('+') | KeyCode::Char('=') => {
                                 app.audio.change_volume(0.05);
                                 let vol = (app.audio.volume * 100.0).round() as u32;
                                 app.set_status(format!("Głośność: {}%", vol));
                             }
-                            KeyCode::Char('-') | KeyCode::Char('[') => {
+                            KeyCode::Char('-') => {
                                 app.audio.change_volume(-0.05);
                                 let vol = (app.audio.volume * 100.0).round() as u32;
                                 app.set_status(format!("Głośność: {}%", vol));
@@ -186,7 +186,7 @@ fn main() -> io::Result<()> {
                                     if app.audio.shuffle { "WŁĄCZONY" } else { "WYŁĄCZONY" }
                                 ));
                             }
-                            KeyCode::Char('r') => {
+                            KeyCode::Char('l') => {
                                 app.audio.cycle_loop_mode();
                                 app.set_status(format!(
                                     "Tryb zapętlania: {}",
