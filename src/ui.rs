@@ -245,8 +245,8 @@ fn render_artist_tree(frame: &mut Frame, app: &mut App, area: Rect) {
 }
 
 fn render_albums_view(frame: &mut Frame, app: &mut App, area: Rect) {
-    let albums = app.get_album_list();
-    if albums.is_empty() {
+    let rows = app.get_album_tree_rows();
+    if rows.is_empty() {
         let msg = Paragraph::new("Brak albumów.")
             .alignment(Alignment::Center)
             .style(Style::default().fg(Color::DarkGray));
@@ -254,42 +254,69 @@ fn render_albums_view(frame: &mut Frame, app: &mut App, area: Rect) {
         return;
     }
 
-    let header = Row::new(vec!["Wykonawca", "Album", "Rok", "Utwory", "Czas"])
-        .style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD));
-
-    let rows: Vec<Row> = albums
+    let items: Vec<ListItem> = rows
         .iter()
         .enumerate()
-        .map(|(idx, a)| {
+        .map(|(idx, row)| {
             let is_selected = idx == app.selected_index;
-            let dur = format!("{:02}:{:02}", a.total_duration_secs / 60, a.total_duration_secs % 60);
-            let yr = a.year.map(|y| y.to_string()).unwrap_or_else(|| "-".to_string());
-            let style = if is_selected {
+            let base_style = if is_selected {
                 Style::default().bg(Color::DarkGray).fg(Color::White).add_modifier(Modifier::BOLD)
             } else {
                 Style::default().fg(Color::White)
             };
-            Row::new(vec![
-                a.artist.clone(),
-                a.title.clone(),
-                yr,
-                a.track_count.to_string(),
-                dur,
-            ])
-            .style(style)
+
+            match row {
+                crate::app::AlbumTreeRow::AlbumHeader {
+                    artist,
+                    album,
+                    year,
+                    expanded,
+                    track_count,
+                    ..
+                } => {
+                    let icon = if *expanded { "v " } else { "> " };
+                    let yr_str = year.map(|y| format!(" ({})", y)).unwrap_or_default();
+                    let text = format!("{}{}{} - {} [{} utw.]", icon, artist, yr_str, album, track_count);
+                    let style = if is_selected {
+                        base_style.fg(Color::Yellow)
+                    } else {
+                        Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)
+                    };
+                    ListItem::new(Span::styled(text, style))
+                }
+                crate::app::AlbumTreeRow::TrackItem { track, is_current } => {
+                    let marker = if *is_current { " * " } else { "   " };
+                    let trk_no = track
+                        .track_number
+                        .map(|n| format!("{:02}. ", n))
+                        .unwrap_or_else(|| "    ".to_string());
+                    let dur = track.duration_formatted();
+                    let title = track.display_title();
+                    let fmt = &track.format_desc;
+
+                    let line_text = format!(
+                        "    {}{}{:<35} | {:<5} | {:<20}",
+                        marker, trk_no, title, dur, fmt
+                    );
+
+                    let style = if *is_current {
+                        if is_selected {
+                            base_style.fg(Color::Green)
+                        } else {
+                            Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)
+                        }
+                    } else {
+                        base_style
+                    };
+
+                    ListItem::new(Span::styled(line_text, style))
+                }
+            }
         })
         .collect();
 
-    let widths = [
-        Constraint::Percentage(25),
-        Constraint::Percentage(35),
-        Constraint::Length(6),
-        Constraint::Length(8),
-        Constraint::Length(8),
-    ];
-
-    let table = Table::new(rows, widths).header(header);
-    frame.render_widget(table, area);
+    let list = List::new(items);
+    render_scrollable_list(frame, list, area, app.selected_index, rows.len());
 }
 
 fn render_all_tracks_view(frame: &mut Frame, app: &mut App, area: Rect) {
@@ -345,12 +372,12 @@ fn render_all_tracks_view(frame: &mut Frame, app: &mut App, area: Rect) {
     ];
 
     let table = Table::new(rows, widths).header(header);
-    frame.render_widget(table, area);
+    render_scrollable_table(frame, table, area, app.selected_index, tracks.len());
 }
 
 fn render_genres_view(frame: &mut Frame, app: &mut App, area: Rect) {
-    let genres = app.get_genre_list();
-    if genres.is_empty() {
+    let rows = app.get_genre_tree_rows();
+    if rows.is_empty() {
         let msg = Paragraph::new("Brak gatunków.")
             .alignment(Alignment::Center)
             .style(Style::default().fg(Color::DarkGray));
@@ -358,26 +385,57 @@ fn render_genres_view(frame: &mut Frame, app: &mut App, area: Rect) {
         return;
     }
 
-    let header = Row::new(vec!["Gatunek", "Liczba utworów"])
-        .style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD));
-
-    let rows: Vec<Row> = genres
+    let items: Vec<ListItem> = rows
         .iter()
         .enumerate()
-        .map(|(idx, g)| {
+        .map(|(idx, row)| {
             let is_selected = idx == app.selected_index;
-            let style = if is_selected {
+            let base_style = if is_selected {
                 Style::default().bg(Color::DarkGray).fg(Color::White).add_modifier(Modifier::BOLD)
             } else {
                 Style::default().fg(Color::White)
             };
-            Row::new(vec![g.name.clone(), g.track_count.to_string()]).style(style)
+
+            match row {
+                crate::app::GenreTreeRow::GenreHeader { genre, expanded, track_count } => {
+                    let icon = if *expanded { "v " } else { "> " };
+                    let text = format!("{}{:<25} [{} utw.]", icon, genre, track_count);
+                    let style = if is_selected {
+                        base_style.fg(Color::Magenta)
+                    } else {
+                        Style::default().fg(Color::Magenta).add_modifier(Modifier::BOLD)
+                    };
+                    ListItem::new(Span::styled(text, style))
+                }
+                crate::app::GenreTreeRow::TrackItem { track, is_current } => {
+                    let marker = if *is_current { " * " } else { "   " };
+                    let dur = track.duration_formatted();
+                    let title = track.display_title();
+                    let artist = &track.artist;
+
+                    let line_text = format!(
+                        "    {}{:<25} - {:<30} | {:<5}",
+                        marker, artist, title, dur
+                    );
+
+                    let style = if *is_current {
+                        if is_selected {
+                            base_style.fg(Color::Green)
+                        } else {
+                            Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)
+                        }
+                    } else {
+                        base_style
+                    };
+
+                    ListItem::new(Span::styled(line_text, style))
+                }
+            }
         })
         .collect();
 
-    let widths = [Constraint::Percentage(60), Constraint::Percentage(40)];
-    let table = Table::new(rows, widths).header(header);
-    frame.render_widget(table, area);
+    let list = List::new(items);
+    render_scrollable_list(frame, list, area, app.selected_index, rows.len());
 }
 
 fn render_explorer_view(frame: &mut Frame, app: &mut App, area: Rect) {
@@ -419,6 +477,23 @@ fn render_scrollable_list(frame: &mut Frame, list: List, area: Rect, selected: u
     state.select(Some(selected));
     *state.offset_mut() = offset;
     frame.render_stateful_widget(list, area, &mut state);
+}
+
+fn render_scrollable_table(frame: &mut Frame, table: Table, area: Rect, selected: usize, total: usize) {
+    if total == 0 {
+        return;
+    }
+    let height = area.height.saturating_sub(1) as usize; // account for header
+    let offset = if height > 0 && selected >= height {
+        selected.saturating_sub(height - 1)
+    } else {
+        0
+    };
+
+    let mut state = ratatui::widgets::TableState::default();
+    state.select(Some(selected));
+    *state.offset_mut() = offset;
+    frame.render_stateful_widget(table, area, &mut state);
 }
 
 fn render_visualizer_panel(frame: &mut Frame, app: &mut App, area: Rect) {

@@ -10,7 +10,7 @@ use rand::thread_rng;
 use crate::audio::{AudioEngine, LoopMode};
 use crate::library::{
     is_supported_audio_file, load_cached_library, start_background_scanner,
-    AlbumInfo, GenreInfo, LibraryTab, ScannerMessage, Track,
+    LibraryTab, ScannerMessage, Track,
 };
 use crate::visualizer::AudioVisualizer;
 
@@ -43,6 +43,35 @@ pub enum ArtistTreeRow {
 }
 
 #[derive(Debug, Clone)]
+pub enum AlbumTreeRow {
+    AlbumHeader {
+        artist: String,
+        album: String,
+        year: Option<u32>,
+        expanded: bool,
+        track_count: usize,
+        total_duration_secs: u64,
+    },
+    TrackItem {
+        track: Track,
+        is_current: bool,
+    },
+}
+
+#[derive(Debug, Clone)]
+pub enum GenreTreeRow {
+    GenreHeader {
+        genre: String,
+        expanded: bool,
+        track_count: usize,
+    },
+    TrackItem {
+        track: Track,
+        is_current: bool,
+    },
+}
+
+#[derive(Debug, Clone)]
 pub struct ExplorerItem {
     pub path: PathBuf,
     pub name: String,
@@ -61,6 +90,12 @@ pub struct App {
     // Artists view state
     pub expanded_artists: HashSet<String>,
     pub expanded_albums: HashSet<(String, String)>,
+
+    // Albums tab state
+    pub expanded_albums_tab: HashSet<String>,
+
+    // Genres tab state
+    pub expanded_genres: HashSet<String>,
 
     // Explorer view state
     pub explorer_dir: PathBuf,
@@ -108,6 +143,8 @@ impl App {
             selected_index: 0,
             expanded_artists: HashSet::new(),
             expanded_albums: HashSet::new(),
+            expanded_albums_tab: HashSet::new(),
+            expanded_genres: HashSet::new(),
             explorer_dir: home_music.clone(),
             explorer_items: Vec::new(),
             queue: Vec::new(),
@@ -312,35 +349,64 @@ impl App {
         rows
     }
 
-    pub fn get_album_list(&self) -> Vec<AlbumInfo> {
+    pub fn get_album_tree_rows(&self) -> Vec<AlbumTreeRow> {
         let filtered = self.get_filtered_tracks();
-        let mut map: BTreeMap<(String, String), Vec<Track>> = BTreeMap::new();
+        let current_path = self.audio.current_track.as_ref().map(|t| &t.path);
+
+        let mut map: BTreeMap<String, Vec<Track>> = BTreeMap::new();
         for track in filtered {
-            map.entry((track.artist.clone(), track.album.clone()))
-                .or_default()
-                .push(track);
+            let album_name = if track.album.trim().is_empty() {
+                "Nieznany album".to_string()
+            } else {
+                track.album.clone()
+            };
+            map.entry(album_name).or_default().push(track);
         }
 
-        let mut albums = Vec::new();
-        for ((artist, title), mut tracks) in map {
+        let mut rows = Vec::new();
+        for (album, mut tracks) in map {
             tracks.sort_by_key(|t| (t.track_number.unwrap_or(0), t.title.clone()));
+            let is_album_expanded = self.expanded_albums_tab.contains(&album);
             let year = tracks.iter().find_map(|t| t.year);
             let total_duration_secs = tracks.iter().map(|t| t.duration_secs).sum();
             let count = tracks.len();
-            albums.push(AlbumInfo {
-                title,
-                artist,
+            
+            // Collect all unique artists for this album
+            let mut artists: Vec<String> = tracks.iter().map(|t| t.artist.clone()).collect();
+            artists.sort();
+            artists.dedup();
+            let artist_display = if artists.len() > 1 {
+                "Różni wykonawcy".to_string()
+            } else if let Some(a) = artists.first() {
+                a.clone()
+            } else {
+                "Nieznany wykonawca".to_string()
+            };
+
+            rows.push(AlbumTreeRow::AlbumHeader {
+                artist: artist_display,
+                album: album.clone(),
                 year,
+                expanded: is_album_expanded,
                 track_count: count,
                 total_duration_secs,
-                tracks,
             });
+
+            if is_album_expanded {
+                for track in tracks {
+                    let is_current = current_path == Some(&track.path);
+                    rows.push(AlbumTreeRow::TrackItem { track, is_current });
+                }
+            }
         }
-        albums
+        rows
     }
 
-    pub fn get_genre_list(&self) -> Vec<GenreInfo> {
+
+    pub fn get_genre_tree_rows(&self) -> Vec<GenreTreeRow> {
         let filtered = self.get_filtered_tracks();
+        let current_path = self.audio.current_track.as_ref().map(|t| &t.path);
+
         let mut map: BTreeMap<String, Vec<Track>> = BTreeMap::new();
         for track in filtered {
             let g = track
@@ -353,16 +419,26 @@ impl App {
             map.entry(g).or_default().push(track);
         }
 
-        let mut genres = Vec::new();
-        for (name, tracks) in map {
+        let mut rows = Vec::new();
+        for (genre, mut tracks) in map {
+            tracks.sort_by_key(|t| (t.artist.clone(), t.album.clone(), t.track_number.unwrap_or(0), t.title.clone()));
+            let is_expanded = self.expanded_genres.contains(&genre);
             let count = tracks.len();
-            genres.push(GenreInfo {
-                name,
+
+            rows.push(GenreTreeRow::GenreHeader {
+                genre: genre.clone(),
+                expanded: is_expanded,
                 track_count: count,
-                tracks,
             });
+
+            if is_expanded {
+                for track in tracks {
+                    let is_current = current_path == Some(&track.path);
+                    rows.push(GenreTreeRow::TrackItem { track, is_current });
+                }
+            }
         }
-        genres
+        rows
     }
 
     pub fn refresh_explorer(&mut self) {
@@ -461,11 +537,38 @@ impl App {
                 }
             }
             LibraryTab::Albums => {
-                let albums = self.get_album_list();
-                if let Some(album) = albums.get(self.selected_index) {
-                    if !album.tracks.is_empty() {
-                        self.queue = album.tracks.clone();
-                        self.play_track_at_queue_index(0);
+                let rows = self.get_album_tree_rows();
+                if let Some(row) = rows.get(self.selected_index) {
+                    match row {
+                        AlbumTreeRow::AlbumHeader { album, .. } => {
+                            if self.expanded_albums_tab.contains(album) {
+                                self.expanded_albums_tab.remove(album);
+                            } else {
+                                self.expanded_albums_tab.insert(album.clone());
+                            }
+                        }
+                        AlbumTreeRow::TrackItem { track, .. } => {
+                            let album_tracks: Vec<Track> = self
+                                .tracks
+                                .iter()
+                                .filter(|t| t.album == track.album)
+                                .cloned()
+                                .collect();
+
+                            let queue = if !album_tracks.is_empty() {
+                                album_tracks
+                            } else {
+                                vec![track.clone()]
+                            };
+
+                            let start_idx = queue
+                                .iter()
+                                .position(|t| t.path == track.path)
+                                .unwrap_or(0);
+
+                            self.queue = queue;
+                            self.play_track_at_queue_index(start_idx);
+                        }
                     }
                 }
             }
@@ -477,11 +580,38 @@ impl App {
                 }
             }
             LibraryTab::Genres => {
-                let genres = self.get_genre_list();
-                if let Some(genre) = genres.get(self.selected_index) {
-                    if !genre.tracks.is_empty() {
-                        self.queue = genre.tracks.clone();
-                        self.play_track_at_queue_index(0);
+                let rows = self.get_genre_tree_rows();
+                if let Some(row) = rows.get(self.selected_index) {
+                    match row {
+                        GenreTreeRow::GenreHeader { genre, .. } => {
+                            if self.expanded_genres.contains(genre) {
+                                self.expanded_genres.remove(genre);
+                            } else {
+                                self.expanded_genres.insert(genre.clone());
+                            }
+                        }
+                        GenreTreeRow::TrackItem { track, .. } => {
+                            let genre_tracks: Vec<Track> = self
+                                .tracks
+                                .iter()
+                                .filter(|t| t.genre == track.genre)
+                                .cloned()
+                                .collect();
+
+                            let queue = if !genre_tracks.is_empty() {
+                                genre_tracks
+                            } else {
+                                vec![track.clone()]
+                            };
+
+                            let start_idx = queue
+                                .iter()
+                                .position(|t| t.path == track.path)
+                                .unwrap_or(0);
+
+                            self.queue = queue;
+                            self.play_track_at_queue_index(start_idx);
+                        }
                     }
                 }
             }
@@ -511,9 +641,9 @@ impl App {
     pub fn move_selection_down(&mut self) {
         let max_len = match self.active_tab {
             LibraryTab::Artists => self.get_artist_tree_rows().len(),
-            LibraryTab::Albums => self.get_album_list().len(),
+            LibraryTab::Albums => self.get_album_tree_rows().len(),
             LibraryTab::Tracks => self.get_filtered_tracks().len(),
-            LibraryTab::Genres => self.get_genre_list().len(),
+            LibraryTab::Genres => self.get_genre_tree_rows().len(),
             LibraryTab::Explorer => self.explorer_items.len(),
         };
 

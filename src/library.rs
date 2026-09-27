@@ -312,19 +312,3 @@ pub enum TreeItem {
     },
 }
 
-#[derive(Debug, Clone)]
-pub struct AlbumInfo {
-    pub title: String,
-    pub artist: String,
-    pub year: Option<u32>,
-    pub track_count: usize,
-    pub total_duration_secs: u64,
-    pub tracks: Vec<Track>,
-}
-
-#[derive(Debug, Clone)]
-pub struct GenreInfo {
-    pub name: String,
-    pub track_count: usize,
-    pub tracks: Vec<Track>,
-}
