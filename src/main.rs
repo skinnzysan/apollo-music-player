@@ -152,11 +152,11 @@ fn main() -> io::Result<()> {
                             KeyCode::Enter => {
                                 app.handle_enter_key();
                             }
-                            KeyCode::Char('<') => {
+                            KeyCode::Char(',') => {
                                 app.audio.seek_relative(-5);
                                 app.set_status("Przewinięto: -5s");
                             }
-                            KeyCode::Char('>') => {
+                            KeyCode::Char('.') => {
                                 app.audio.seek_relative(5);
                                 app.set_status("Przewinięto: +5s");
                             }
