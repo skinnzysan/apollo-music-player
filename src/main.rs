@@ -200,6 +200,14 @@ fn main() -> io::Result<()> {
                                     app.visualizer.mode
                                 ));
                             }
+                            KeyCode::Char('c') => {
+                                app.show_visualizer = !app.show_visualizer;
+                                app.set_status(if app.show_visualizer {
+                                    "Wizualizator widoczny"
+                                } else {
+                                    "Wizualizator ukryty"
+                                });
+                            }
                             KeyCode::Tab => {
                                 app.toggle_focus();
                             }
@@ -241,6 +249,7 @@ fn main() -> io::Result<()> {
     }
 
     // Gracefully stop background threads and cleanup
+    app.save_state();
     app.cancel_flag.store(true, Ordering::Relaxed);
     app.audio.stop();
 

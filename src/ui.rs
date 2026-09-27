@@ -3,7 +3,7 @@ use ratatui::{
     style::{Color, Modifier, Style},
     text::{Line, Span},
     widgets::{
-        Block, BorderType, Borders, List, ListItem, Paragraph, Row, Table, Tabs, Wrap,
+        Block, BorderType, Borders, List, ListItem, Paragraph, Row, Table, Wrap,
     },
     Frame,
 };
@@ -27,41 +27,60 @@ pub fn draw_ui(frame: &mut Frame, app: &mut App) {
         return;
     }
 
-    // Determine layout constraints based on terminal height
-    let (vis_height, show_vis) = if size.height >= 26 {
+    let show_logo = size.width >= 50 && size.height >= 25; // Potrzeba więcej miejsca w pionie
+    let (vis_height, can_show_vis) = if size.height >= 26 {
         (8, true)
     } else if size.height >= 20 {
         (5, true)
     } else {
         (0, false)
     };
+    let show_vis = can_show_vis && app.show_visualizer;
 
-    let constraints = if show_vis {
-        vec![
-            Constraint::Min(8),            // Library panel
-            Constraint::Length(vis_height), // Visualizer
-            Constraint::Length(5),         // Now Playing
-            Constraint::Length(2),         // Hotkeys / status footer
-        ]
-    } else {
-        vec![
-            Constraint::Min(8),            // Library panel
-            Constraint::Length(5),         // Now Playing
-            Constraint::Length(2),         // Hotkeys / status footer
-        ]
-    };
+    let mut constraints = vec![];
+    if show_logo {
+        constraints.push(Constraint::Length(5));       // Logo
+    }
+    constraints.push(Constraint::Min(8));              // Library panel
+    if show_vis {
+        constraints.push(Constraint::Length(vis_height)); // Visualizer
+    }
+    constraints.push(Constraint::Length(5));           // Now Playing
+    
+    let mut footer_height = (155 + size.width.saturating_sub(1)) / size.width.max(1);
+    if app.get_status().is_some() {
+        footer_height += 1;
+    }
+    constraints.push(Constraint::Length(footer_height)); // Hotkeys / status footer
 
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints(constraints)
         .split(size);
 
-    let library_rect = chunks[0];
-    let (vis_rect, now_playing_rect, footer_rect) = if show_vis {
-        (Some(chunks[1]), chunks[2], chunks[3])
+    let mut chunk_idx = 0;
+    let logo_rect = if show_logo {
+        let rect = chunks[chunk_idx];
+        chunk_idx += 1;
+        Some(rect)
     } else {
-        (None, chunks[1], chunks[2])
+        None
     };
+
+    let library_rect = chunks[chunk_idx];
+    chunk_idx += 1;
+
+    let vis_rect = if show_vis {
+        let rect = chunks[chunk_idx];
+        chunk_idx += 1;
+        Some(rect)
+    } else {
+        None
+    };
+
+    let now_playing_rect = chunks[chunk_idx];
+    chunk_idx += 1;
+    let footer_rect = chunks[chunk_idx];
 
     // 1. Render Library Panel
     render_library_panel(frame, app, library_rect);
@@ -72,10 +91,26 @@ pub fn draw_ui(frame: &mut Frame, app: &mut App) {
     }
 
     // 3. Render Now Playing Panel
-    render_now_playing_panel(frame, app, now_playing_rect);
+    render_now_playing_panel(frame, app, now_playing_rect, show_vis);
 
     // 4. Render Footer Hotkey / Search bar
     render_footer(frame, app, footer_rect);
+
+    // 5. Render ASCII art logo if there is enough space
+    if let Some(rect) = logo_rect {
+        let art = vec![
+            Line::from("    _             _ _     "),
+            Line::from("   /_\\  _ __  ___| | |___ "),
+            Line::from("  / _ \\| '_ \\/ _ \\ | / _ \\"),
+            Line::from(" /_/ \\_\\ .__/\\___/_|_\\___/"),
+            Line::from("       |_|                "),
+        ];
+        let art_widget = Paragraph::new(art)
+            .alignment(Alignment::Right)
+            .style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD));
+        
+        frame.render_widget(art_widget, rect);
+    }
 }
 
 fn render_library_panel(frame: &mut Frame, app: &mut App, area: Rect) {
@@ -122,23 +157,31 @@ fn render_library_panel(frame: &mut Frame, app: &mut App, area: Rect) {
         return;
     }
 
+    let tab_lines_count = if inner_area.width < 80 { 2 } else { 1 };
     let tab_layout = Layout::default()
         .direction(Direction::Vertical)
-        .constraints([Constraint::Length(1), Constraint::Min(1)])
+        .constraints([Constraint::Length(tab_lines_count), Constraint::Min(1)])
         .split(inner_area);
 
-    let tabs = Tabs::new(tab_titles)
-        .select(selected_tab_idx)
-        .style(Style::default().fg(Color::DarkGray))
-        .highlight_style(
-            Style::default()
-                .fg(Color::Cyan)
-                .add_modifier(Modifier::BOLD)
-                .add_modifier(Modifier::UNDERLINED),
-        )
-        .divider(Span::styled(" | ", Style::default().fg(Color::DarkGray)));
+    let mut tab_spans = Vec::new();
+    for (i, title) in tab_titles.iter().enumerate() {
+        if i == selected_tab_idx {
+            tab_spans.push(Span::styled(
+                *title,
+                Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD).add_modifier(Modifier::UNDERLINED)
+            ));
+        } else {
+            tab_spans.push(Span::styled(*title, Style::default().fg(Color::DarkGray)));
+        }
+        if i < tab_titles.len() - 1 {
+            tab_spans.push(Span::styled(" | ", Style::default().fg(Color::DarkGray)));
+        }
+    }
 
-    frame.render_widget(tabs, tab_layout[0]);
+    let tabs_paragraph = Paragraph::new(Line::from(tab_spans))
+        .wrap(Wrap { trim: true });
+
+    frame.render_widget(tabs_paragraph, tab_layout[0]);
 
     let content_area = tab_layout[1];
 
@@ -510,7 +553,7 @@ fn render_visualizer_panel(frame: &mut Frame, app: &mut App, area: Rect) {
         .border_type(BorderType::Rounded)
         .border_style(Style::default().fg(border_color))
         .title(Span::styled(
-            format!(" 2. WIZUALIZATOR AUDIO ({}) [v - Przełącz] ", mode_str),
+            format!(" 2. WIZUALIZATOR AUDIO ({}) [v - Przełącz | c - Pokaż/Ukryj] ", mode_str),
             Style::default().fg(if is_focused { Color::Cyan } else { Color::White }).add_modifier(Modifier::BOLD),
         ));
 
@@ -636,16 +679,18 @@ fn render_waveform(frame: &mut Frame, app: &App, area: Rect) {
     frame.render_widget(p, area);
 }
 
-fn render_now_playing_panel(frame: &mut Frame, app: &App, area: Rect) {
+fn render_now_playing_panel(frame: &mut Frame, app: &App, area: Rect, is_visualizer_shown: bool) {
     let is_focused = app.focus_panel == FocusPanel::Controls;
     let border_color = if is_focused { Color::Cyan } else { Color::DarkGray };
 
+    let panel_num = if is_visualizer_shown { 3 } else { 2 };
+    
     let block = Block::default()
         .borders(Borders::ALL)
         .border_type(BorderType::Rounded)
         .border_style(Style::default().fg(border_color))
         .title(Span::styled(
-            " 3. TERAZ ODTWARZANE ",
+            format!(" {}. TERAZ ODTWARZANE ", panel_num),
             Style::default().fg(if is_focused { Color::Cyan } else { Color::White }).add_modifier(Modifier::BOLD),
         ));
 
@@ -751,11 +796,13 @@ fn render_footer(frame: &mut Frame, app: &App, area: Rect) {
         return;
     }
 
+    let mut lines = Vec::new();
+    
     if let Some(status) = app.get_status() {
-        let p = Paragraph::new(format!("  [i] {}", status))
-            .style(Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD));
-        frame.render_widget(p, area);
-        return;
+        lines.push(Line::from(Span::styled(
+            format!("  [i] {}", status),
+            Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)
+        )));
     }
 
     let hotkeys = Line::from(vec![
@@ -776,7 +823,8 @@ fn render_footer(frame: &mut Frame, app: &App, area: Rect) {
         Span::styled("[ q ]", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
         Span::styled(" Wyjście", Style::default().fg(Color::White)),
     ]);
+    lines.push(hotkeys);
 
-    let p = Paragraph::new(hotkeys).wrap(Wrap { trim: true });
+    let p = Paragraph::new(lines).wrap(Wrap { trim: true });
     frame.render_widget(p, area);
 }

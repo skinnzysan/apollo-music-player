@@ -271,7 +271,7 @@ pub fn start_background_scanner(
     rx
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum LibraryTab {
     Artists,
     Albums,

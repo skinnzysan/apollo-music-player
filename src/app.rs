@@ -4,8 +4,35 @@ use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use crossbeam_channel::Receiver;
+use serde::{Deserialize, Serialize};
+use std::fs;
 use rand::seq::SliceRandom;
 use rand::thread_rng;
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct AppState {
+    pub volume: f32,
+    pub show_visualizer: bool,
+    pub active_tab: LibraryTab,
+}
+
+impl Default for AppState {
+    fn default() -> Self {
+        Self {
+            volume: 1.0,
+            show_visualizer: true,
+            active_tab: LibraryTab::Artists,
+        }
+    }
+}
+
+pub fn get_state_path() -> PathBuf {
+    if let Some(cache_dir) = dirs::cache_dir() {
+        cache_dir.join("apollo/app_state.json")
+    } else {
+        PathBuf::from(".apollo_app_state.json")
+    }
+}
 
 use crate::audio::{AudioEngine, LoopMode};
 use crate::library::{
@@ -110,6 +137,9 @@ pub struct App {
     pub is_searching: bool,
     pub search_query: String,
 
+    // Visualizer toggle
+    pub show_visualizer: bool,
+
     // Status / Notification
     pub status_message: Option<(String, Instant)>,
 
@@ -134,11 +164,20 @@ impl App {
             .or_else(|| dirs::home_dir().map(|h| h.join("Music")))
             .unwrap_or_else(|| PathBuf::from("."));
 
+        let state: AppState = fs::read_to_string(get_state_path())
+            .ok()
+            .and_then(|data| serde_json::from_str(&data).ok())
+            .unwrap_or_default();
+
+        let mut audio = AudioEngine::new();
+        audio.volume = state.volume;
+        audio.prev_volume = state.volume;
+
         let mut app = Self {
-            audio: AudioEngine::new(),
+            audio,
             visualizer: AudioVisualizer::new(48000),
             tracks: cached,
-            active_tab: LibraryTab::Artists,
+            active_tab: state.active_tab,
             focus_panel: FocusPanel::Library,
             selected_index: 0,
             expanded_artists: HashSet::new(),
@@ -152,6 +191,7 @@ impl App {
             shuffle_history: Vec::new(),
             is_searching: false,
             search_query: String::new(),
+            show_visualizer: state.show_visualizer,
             status_message: Some((
                 "Witaj w Apollo! [Spacja] Odtwarzaj | [/] Szukaj".to_string(),
                 Instant::now(),
@@ -165,6 +205,21 @@ impl App {
         app.refresh_explorer();
         app.auto_expand_first();
         app
+    }
+
+    pub fn save_state(&self) {
+        let state = AppState {
+            volume: self.audio.volume,
+            show_visualizer: self.show_visualizer,
+            active_tab: self.active_tab,
+        };
+        let path = get_state_path();
+        if let Some(parent) = path.parent() {
+            let _ = fs::create_dir_all(parent);
+        }
+        if let Ok(json) = serde_json::to_string(&state) {
+            let _ = fs::write(path, json);
+        }
     }
 
     pub fn auto_expand_first(&mut self) {
@@ -644,6 +699,17 @@ impl App {
     pub fn move_selection_up(&mut self) {
         if self.selected_index > 0 {
             self.selected_index -= 1;
+        } else {
+            let max_len = match self.active_tab {
+                LibraryTab::Artists => self.get_artist_tree_rows().len(),
+                LibraryTab::Albums => self.get_album_tree_rows().len(),
+                LibraryTab::Tracks => self.get_filtered_tracks().len(),
+                LibraryTab::Genres => self.get_genre_tree_rows().len(),
+                LibraryTab::Explorer => self.explorer_items.len(),
+            };
+            if max_len > 0 {
+                self.selected_index = max_len - 1;
+            }
         }
     }
 
@@ -656,8 +722,12 @@ impl App {
             LibraryTab::Explorer => self.explorer_items.len(),
         };
 
-        if max_len > 0 && self.selected_index + 1 < max_len {
-            self.selected_index += 1;
+        if max_len > 0 {
+            if self.selected_index + 1 < max_len {
+                self.selected_index += 1;
+            } else {
+                self.selected_index = 0;
+            }
         }
     }
 
