@@ -1,10 +1,23 @@
-# Apollo - Terminal Music Player
+![Header](docs/Header.svg)
+
+<div align="center">
+  <img alt="Static Badge" src="https://img.shields.io/badge/Rust-1.98.1-%23FF7F50?style=for-the-badge&logo=Rust">
+  <img alt="Static Badge" src="https://img.shields.io/badge/Version-1.1.0-%23FFD166?style=for-the-badge">
+  <img alt="Static Badge" src="https://img.shields.io/badge/License-MIT-%2306D6A0?style=for-the-badge">
+</div>
+
+<div align="center">
+  <a href="#Installation"><img alt="Static Badge" src="https://img.shields.io/badge/Installation-%23118AB2?style=for-the-badge"></a>
+  <a href="#usage"><img alt="Static Badge" src="https://img.shields.io/badge/USAGE-%23118AB2?style=for-the-badge"></a>
+  <a href="#Configuration"><img alt="Static Badge" src="https://img.shields.io/badge/configuration-%23118AB2?style=for-the-badge"></a>
+  <a href="https://github.com/skinnzysan/apollo-music-player/blob/main/CHANGELOG.md"><img alt="Static Badge" src="https://img.shields.io/badge/changelog-%23118AB2?style=for-the-badge"></a>
+</div>
+
+---
 
 ![Demo](docs/demo.gif)
 
 > **Note:** This program was entirely **vibe coded** using antigravity with Gemini 3.1 Pro (Low).
-
-Apollo is a fast and lightweight Terminal User Interface (TUI) music player written in Rust. It runs seamlessly in your terminal, offering an elegant way to browse, organize, and listen to your local music library.
 
 ## Features
 
