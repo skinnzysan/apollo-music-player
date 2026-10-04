@@ -1,9 +1,9 @@
 ![Header](docs/Header.svg)
 
 <div align="center">
-  <img alt="Static Badge" src="https://img.shields.io/badge/Rust-1.98.1-%23FF7F50?style=for-the-badge&logo=Rust">
-  <img alt="Static Badge" src="https://img.shields.io/badge/Version-1.1.0-%23FFD166?style=for-the-badge">
-  <img alt="Static Badge" src="https://img.shields.io/badge/License-MIT-%2306D6A0?style=for-the-badge">
+  <a href="https://rust-lang.org/"><img alt="Static Badge" src="https://img.shields.io/badge/Rust-1.98.1-%23FF7F50?style=for-the-badge&logo=Rust"></a>
+  <img alt="Static Badge" src="https://img.shields.io/badge/version-1.1.0-%23FFD166?style=for-the-badge&logo=githubactions">
+  <a href="https://github.com/skinnzysan/apollo-music-player/blob/main/LICENSE"><img alt="Static Badge" src="https://img.shields.io/badge/License-MIT-%2306D6A0?style=for-the-badge&logo=opensourcehardware"></a>
 </div>
 
 <div align="center">
