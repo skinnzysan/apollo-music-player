@@ -2,59 +2,59 @@
 
 set -e
 
-echo "==> Rozpoczynam instalację Apollo..."
+echo "==> Starting Apollo installation..."
 
-# Sprawdzanie i instalacja zależności systemowych
-echo "==> Sprawdzanie zależności systemowych (ALSA, kompilator)..."
+# Check and install system dependencies
+echo "==> Checking system dependencies (ALSA, compiler)..."
 if command -v apt-get &> /dev/null; then
-    echo "Wykryto system oparty na Debian/Ubuntu."
+    echo "Detected Debian/Ubuntu-based system."
     sudo apt-get update
     sudo apt-get install -y libasound2-dev build-essential pkg-config curl
 elif command -v pacman &> /dev/null; then
-    echo "Wykryto system oparty na Arch Linux."
+    echo "Detected Arch Linux-based system."
     sudo pacman -Sy --needed alsa-lib base-devel curl
 elif command -v dnf &> /dev/null; then
-    echo "Wykryto system oparty na Fedora."
+    echo "Detected Fedora-based system."
     sudo dnf install -y alsa-lib-devel gcc pkgconf-pkg-config curl
 elif command -v zypper &> /dev/null; then
-    echo "Wykryto system oparty na openSUSE."
+    echo "Detected openSUSE-based system."
     sudo zypper install -y alsa-devel gcc pkg-config curl
 else
-    echo "Nie rozpoznano menedżera pakietów. Upewnij się, że biblioteki deweloperskie ALSA (np. libasound2-dev) są zainstalowane."
+    echo "Unrecognized package manager. Please ensure ALSA development libraries (e.g. libasound2-dev) are installed."
 fi
 
-# Sprawdzenie czy jest Rust/Cargo
-echo "==> Sprawdzanie środowiska Rust..."
+# Check for Rust/Cargo
+echo "==> Checking Rust environment..."
 if ! command -v cargo &> /dev/null; then
-    echo "Nie znaleziono Cargo. Rozpoczynam instalację języka Rust (rustup)..."
+    echo "Cargo not found. Starting Rust installation (rustup)..."
     curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
     source "$HOME/.cargo/env"
 else
-    echo "Rust jest już zainstalowany."
+    echo "Rust is already installed."
 fi
 
-# Budowanie projektu
-echo "==> Pobieranie bibliotek (Rust) i budowanie programu..."
+# Build project
+echo "==> Fetching libraries (Rust) and building the program..."
 cargo build --release
 
-# Instalacja do katalogu użytkownika (żeby można było uruchamiać z dowolnego miejsca)
-echo "==> Instalowanie programu..."
+# Install to user directory
+echo "==> Installing the program..."
 INSTALL_DIR="$HOME/.local/bin"
 mkdir -p "$INSTALL_DIR"
 
 cp target/release/apollo "$INSTALL_DIR/apollo"
 chmod +x "$INSTALL_DIR/apollo"
 
-echo "==> Sukces! Program został zainstalowany w $INSTALL_DIR/apollo."
+echo "==> Success! The program has been installed to $INSTALL_DIR/apollo."
 
-# Sprawdzenie czy INSTALL_DIR jest w PATH
+# Check if INSTALL_DIR is in PATH
 if [[ ":$PATH:" != *":$INSTALL_DIR:"* ]]; then
     echo ""
-    echo "UWAGA: Katalog $INSTALL_DIR nie znajduje się w Twojej zmiennej PATH."
-    echo "Aby móc odpalić program wpisując po prostu 'apollo' z dowolnego miejsca, dodaj tę linię do pliku ~/.bashrc lub ~/.zshrc:"
+    echo "WARNING: The directory $INSTALL_DIR is not in your PATH."
+    echo "To run the program by just typing 'apollo' from anywhere, add this line to your ~/.bashrc or ~/.zshrc:"
     echo 'export PATH="$HOME/.local/bin:$PATH"'
-    echo "Następnie uruchom terminal ponownie lub wpisz 'source ~/.bashrc'."
+    echo "Then restart your terminal or run 'source ~/.bashrc'."
 else
-    echo "Możesz teraz uruchomić odtwarzacz wpisując polecenie:"
+    echo "You can now start the player by running:"
     echo "apollo"
 fi
