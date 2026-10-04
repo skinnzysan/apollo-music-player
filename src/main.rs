@@ -56,16 +56,17 @@ fn main() -> io::Result<()> {
             println!("    z / x, ← / →     Previous / Next track");
             println!("    j / k, ↑ / ↓     Navigate list / tree");
             println!("    Enter            Play track / Expand tree branch");
-            println!("    < / >            Seek -5s / +5s");
+            println!("    , / .            Seek -5s / +5s");
             println!("    + / = / -        Volume ±5%");
             println!("    m                Mute");
             println!("    s                Shuffle mode");
             println!("    l                Loop mode (None / Track / Queue)");
-            println!("    v                Visualizer mode (Spectrum / Waveform)");
-            println!("    F1 - F5          Tabs (Artists, Albums, All, Genres, Explorer)");
-            println!("    Tab              Switch active panel");
+            println!("    v                Toggle visualizer mode (Spectrum / Waveform)");
+            println!("    c                Show / Hide visualizer");
+            println!("    F1 - F5          Tabs (Artists, Albums, Tracks, Genres, Explorer)");
             println!("    /                Search");
-            println!("    q, Esc           Quit / Cancel");
+            println!("    Esc              Cancel search");
+            println!("    q, Ctrl+c        Quit");
             return Ok(());
         } else if arg == "-V" || arg == "--version" {
             println!("Apollo 0.1.0");
@@ -211,9 +212,6 @@ fn main() -> io::Result<()> {
                                 } else {
                                     app.i18n.t("status_visualizer_hidden")
                                 });
-                            }
-                            KeyCode::Tab => {
-                                app.toggle_focus();
                             }
                             KeyCode::F(1) => {
                                 app.switch_tab(LibraryTab::Artists);

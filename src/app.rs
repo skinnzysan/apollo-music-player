@@ -749,11 +749,4 @@ impl App {
         self.selected_index = 0;
     }
 
-    pub fn toggle_focus(&mut self) {
-        self.focus_panel = match self.focus_panel {
-            FocusPanel::Library => FocusPanel::Visualizer,
-            FocusPanel::Visualizer => FocusPanel::Controls,
-            FocusPanel::Controls => FocusPanel::Library,
-        };
-    }
 }
