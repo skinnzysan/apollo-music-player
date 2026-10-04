@@ -40,30 +40,30 @@ fn main() -> io::Result<()> {
 
     for arg in &args {
         if arg == "-h" || arg == "--help" {
-            println!("Apollo - Terminalowy Odtwarzacz Muzyki dla Linuksa");
+            println!("Apollo - Terminal Music Player for Linux");
             println!();
-            println!("UŻYCIE:");
-            println!("    apollo [KATALOG_LUB_PLIK...]");
+            println!("USAGE:");
+            println!("    apollo [DIRECTORY_OR_FILE...]");
             println!();
-            println!("OPCJE:");
-            println!("    -h, --help       Wyświetl tę pomoc");
-            println!("    -v, --version    Wyświetl wersję programu");
+            println!("OPTIONS:");
+            println!("    -h, --help       Print this help information");
+            println!("    -v, --version    Print version information");
             println!();
-            println!("SKRÓTY KLAWISZOWE:");
-            println!("    Spacja           Pauza / Wznów (Play/Pause)");
-            println!("    z / x, ← / →     Poprzedni / Następny utwór");
-            println!("    j / k, ↑ / ↓     Poruszanie się po liście");
-            println!("    Enter            Odtwórz utwór / Rozwiń gałąź");
-            println!("    < / >            Przewijanie -5s / +5s");
-            println!("    + / = / -        Głośność ±5%");
-            println!("    m                Wyciszenie (Mute)");
-            println!("    s                Mieszanie losowe (Shuffle)");
-            println!("    l                Zapętlenie (Brak / Utwór / Kolejka)");
-            println!("    v                Tryb wizualizatora (Spectrum / Waveform)");
-            println!("    F1 - F5          Zakładki (Wykonawcy, Albumy, Wszystkie, Gatunki, Eksplorator)");
-            println!("    Tab              Przełącz aktywny panel");
-            println!("    /                Wyszukiwanie");
-            println!("    q, Esc           Wyjście / Anulowanie");
+            println!("KEYBINDINGS:");
+            println!("    Space            Play / Pause");
+            println!("    z / x, ← / →     Previous / Next track");
+            println!("    j / k, ↑ / ↓     Navigate list / tree");
+            println!("    Enter            Play track / Expand tree branch");
+            println!("    < / >            Seek -5s / +5s");
+            println!("    + / = / -        Volume ±5%");
+            println!("    m                Mute");
+            println!("    s                Shuffle mode");
+            println!("    l                Loop mode (None / Track / Queue)");
+            println!("    v                Visualizer mode (Spectrum / Waveform)");
+            println!("    F1 - F5          Tabs (Artists, Albums, All, Genres, Explorer)");
+            println!("    Tab              Switch active panel");
+            println!("    /                Search");
+            println!("    q, Esc           Quit / Cancel");
             return Ok(());
         } else if arg == "-V" || arg == "--version" {
             println!("Apollo 0.1.0");
