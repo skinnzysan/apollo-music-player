@@ -1,4 +1,4 @@
-![Header](docs/Header.svg)
+<img src="docs/Header.svg" width="100%" alt="Header">
 
 <div align="center">
   <a href="https://rust-lang.org/"><img alt="Static Badge" src="https://img.shields.io/badge/Rust-1.98.1-%23FF7F50?style=for-the-badge&logo=Rust"></a>
