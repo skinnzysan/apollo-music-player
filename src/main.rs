@@ -74,17 +74,27 @@ fn main() -> io::Result<()> {
         }
     }
 
-    let music_paths = if !args.is_empty() {
-        args.into_iter().map(PathBuf::from).collect()
-    } else {
-        let mut paths = Vec::new();
-        if let Some(music_dir) = dirs::audio_dir() {
-            paths.push(music_dir);
-        } else if let Some(home) = dirs::home_dir() {
-            paths.push(home.join("Music"));
+    let mut config = crate::config::load_config();
+
+    fn expand_tilde(path: &str) -> PathBuf {
+        if path.starts_with("~/") {
+            if let Some(mut home) = dirs::home_dir() {
+                home.push(&path[2..]);
+                return home;
+            }
         }
-        paths.push(PathBuf::from("."));
-        paths
+        PathBuf::from(path)
+    }
+
+    let music_paths = if !args.is_empty() {
+        let str_args = args.clone();
+        config.library_paths = str_args;
+        crate::config::save_config(&config);
+        args.into_iter().map(|s| expand_tilde(&s)).collect()
+    } else if !config.library_paths.is_empty() {
+        config.library_paths.clone().into_iter().map(|s| expand_tilde(&s)).collect()
+    } else {
+        crate::config::AppConfig::default().library_paths.into_iter().map(|s| expand_tilde(&s)).collect()
     };
 
     let mut app = App::new(music_paths);

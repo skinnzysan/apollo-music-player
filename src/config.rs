@@ -16,10 +16,21 @@ impl Default for Language {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Default)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct AppConfig {
     #[serde(default)]
     pub language: Language,
+    #[serde(default)]
+    pub library_paths: Vec<String>,
+}
+
+impl Default for AppConfig {
+    fn default() -> Self {
+        Self {
+            language: Language::default(),
+            library_paths: vec!["~/Music".to_string()],
+        }
+    }
 }
 
 pub fn get_config_path() -> PathBuf {
@@ -39,15 +50,19 @@ pub fn load_config() -> AppConfig {
             }
         }
     } else {
-        // Create default config
-        if let Some(parent) = path.parent() {
-            let _ = fs::create_dir_all(parent);
-        }
         let config = AppConfig::default();
-        if let Ok(content) = toml::to_string_pretty(&config) {
-            let _ = fs::write(&path, content);
-        }
+        save_config(&config);
         return config;
     }
     AppConfig::default()
+}
+
+pub fn save_config(config: &AppConfig) {
+    let path = get_config_path();
+    if let Some(parent) = path.parent() {
+        let _ = fs::create_dir_all(parent);
+    }
+    if let Ok(content) = toml::to_string_pretty(config) {
+        let _ = fs::write(&path, content);
+    }
 }

@@ -166,9 +166,11 @@ impl App {
             cancel_flag.clone(),
         ));
 
-        let home_music = dirs::audio_dir()
-            .or_else(|| dirs::home_dir().map(|h| h.join("Music")))
-            .unwrap_or_else(|| PathBuf::from("."));
+        let home_music = music_paths.first().cloned().unwrap_or_else(|| {
+            dirs::audio_dir()
+                .or_else(|| dirs::home_dir().map(|h| h.join("Music")))
+                .unwrap_or_else(|| PathBuf::from("."))
+        });
 
         let state: AppState = fs::read_to_string(get_state_path())
             .ok()
