@@ -148,6 +148,7 @@ pub struct App {
     pub cancel_flag: Arc<AtomicBool>,
     pub is_scanning: bool,
     pub should_quit: bool,
+    pub pending_seek: i64,
     
     // Configuration & Localization
     pub config: crate::config::AppConfig,
@@ -207,6 +208,7 @@ impl App {
             cancel_flag,
             is_scanning: true,
             should_quit: false,
+            pending_seek: 0,
             config,
             i18n,
         };

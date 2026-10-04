@@ -168,12 +168,12 @@ fn main() -> io::Result<()> {
                                 app.handle_enter_key();
                             }
                             KeyCode::Char(',') => {
-                                app.audio.seek_relative(-5);
-                                app.set_status(app.i18n.t("status_seek_bwd"));
+                                app.pending_seek -= 5;
+                                app.set_status(app.i18n.t("status_seek_bwd").to_string());
                             }
                             KeyCode::Char('.') => {
-                                app.audio.seek_relative(5);
-                                app.set_status(app.i18n.t("status_seek_fwd"));
+                                app.pending_seek += 5;
+                                app.set_status(app.i18n.t("status_seek_fwd").to_string());
                             }
                             KeyCode::Char('+') | KeyCode::Char('=') => {
                                 app.audio.change_volume(0.05);
@@ -264,6 +264,11 @@ fn main() -> io::Result<()> {
                     break;
                 }
             }
+        }
+
+        if app.pending_seek != 0 {
+            app.audio.seek_relative(app.pending_seek);
+            app.pending_seek = 0;
         }
     }
 
