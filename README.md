@@ -1,6 +1,8 @@
 # Apollo - Terminal Music Player
 
-> **Note:** This program was entirely **vibe coded**.
+![Demo](docs/demo.gif)
+
+> **Note:** This program was entirely **vibe coded** using antigravity with Gemini 3.1 Pro (Low).
 
 Apollo is a fast and lightweight Terminal User Interface (TUI) music player written in Rust. It runs seamlessly in your terminal, offering an elegant way to browse, organize, and listen to your local music library.
 
