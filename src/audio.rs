@@ -25,9 +25,9 @@ impl LoopMode {
 
     pub fn display_label(&self) -> &'static str {
         match self {
-            LoopMode::Off => "Brak",
-            LoopMode::Track => "Utwór",
-            LoopMode::Queue => "Kolejka",
+            LoopMode::Off => "loop_none",
+            LoopMode::Track => "loop_track",
+            LoopMode::Queue => "loop_queue",
         }
     }
 }

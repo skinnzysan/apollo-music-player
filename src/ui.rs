@@ -20,12 +20,13 @@ pub fn draw_ui(frame: &mut Frame, app: &mut App) {
 
     // Check minimum dimensions
     if size.width < 50 || size.height < 14 {
-        let msg = Paragraph::new("Zbyt mały rozmiar terminala (wymagane min. 50x14)")
+        let msg = Paragraph::new(app.i18n.t("term_too_small"))
             .alignment(Alignment::Center)
             .style(Style::default().fg(Color::Yellow));
         frame.render_widget(msg, size);
         return;
     }
+
 
     let show_logo = size.width >= 50 && size.height >= 25; // Potrzeba więcej miejsca w pionie
     let (vis_height, can_show_vis) = if size.height >= 26 {
@@ -119,11 +120,11 @@ fn render_library_panel(frame: &mut Frame, app: &mut App, area: Rect) {
 
     // Tabs headers
     let tab_titles = vec![
-        "[F1] Wykonawcy",
-        "[F2] Albumy",
-        "[F3] Wszystkie",
-        "[F4] Gatunki",
-        "[F5] Eksplorator",
+        app.i18n.t("library_tab_artists"),
+        app.i18n.t("library_tab_albums"),
+        app.i18n.t("library_tab_tracks"),
+        app.i18n.t("library_tab_genres"),
+        app.i18n.t("library_tab_explorer"),
     ];
 
     let selected_tab_idx = match app.active_tab {
@@ -134,12 +135,13 @@ fn render_library_panel(frame: &mut Frame, app: &mut App, area: Rect) {
         LibraryTab::Explorer => 4,
     };
 
+    let title = format!(" 1. {} ", app.i18n.t("library_title").to_uppercase());
     let outer_block = Block::default()
         .borders(Borders::ALL)
         .border_type(BorderType::Rounded)
         .border_style(Style::default().fg(border_color))
         .title(Span::styled(
-            " 1. BIBLIOTEKA MUZYCZNA ",
+            title,
             Style::default().fg(if is_focused { Color::Cyan } else { Color::White }).add_modifier(Modifier::BOLD),
         ));
 
@@ -198,9 +200,9 @@ fn render_artist_tree(frame: &mut Frame, app: &mut App, area: Rect) {
     let rows = app.get_artist_tree_rows();
     if rows.is_empty() {
         let msg = Paragraph::new(if app.is_scanning {
-            "Skanowanie katalogu ~/Music w toku..."
+            app.i18n.t("scanning")
         } else {
-            "Brak utworów w bibliotece. Umieść pliki audio w ~/Music"
+            app.i18n.t("no_tracks")
         })
         .alignment(Alignment::Center)
         .style(Style::default().fg(Color::DarkGray));
@@ -227,7 +229,7 @@ fn render_artist_tree(frame: &mut Frame, app: &mut App, area: Rect) {
                     track_count,
                 } => {
                     let icon = if *expanded { "v " } else { "> " };
-                    let text = format!("{}{} ({} albumy, {} utw.)", icon, artist, album_count, track_count);
+                    let text = format!("{}{} ({} {}, {} {})", icon, artist, album_count, app.i18n.t("albums_count"), track_count, app.i18n.t("tracks_short"));
                     let style = if is_selected {
                         base_style.fg(Color::Cyan)
                     } else {
@@ -244,7 +246,7 @@ fn render_artist_tree(frame: &mut Frame, app: &mut App, area: Rect) {
                 } => {
                     let icon = if *expanded { "  v " } else { "  > " };
                     let yr_str = year.map(|y| format!(" ({})", y)).unwrap_or_default();
-                    let text = format!("{}{}{} [{} utw.]", icon, album, yr_str, track_count);
+                    let text = format!("{}{}{} [{} {}]", icon, album, yr_str, track_count, app.i18n.t("tracks_short"));
                     let style = if is_selected {
                         base_style.fg(Color::Yellow)
                     } else {
@@ -290,7 +292,7 @@ fn render_artist_tree(frame: &mut Frame, app: &mut App, area: Rect) {
 fn render_albums_view(frame: &mut Frame, app: &mut App, area: Rect) {
     let rows = app.get_album_tree_rows();
     if rows.is_empty() {
-        let msg = Paragraph::new("Brak albumów.")
+        let msg = Paragraph::new(app.i18n.t("no_albums"))
             .alignment(Alignment::Center)
             .style(Style::default().fg(Color::DarkGray));
         frame.render_widget(msg, area);
@@ -319,7 +321,7 @@ fn render_albums_view(frame: &mut Frame, app: &mut App, area: Rect) {
                 } => {
                     let icon = if *expanded { "v " } else { "> " };
                     let yr_str = year.map(|y| format!(" ({})", y)).unwrap_or_default();
-                    let text = format!("{}{}{} - {} [{} utw.]", icon, artist, yr_str, album, track_count);
+                    let text = format!("{}{}{} - {} [{} {}]", icon, artist, yr_str, album, track_count, app.i18n.t("tracks_short"));
                     let style = if is_selected {
                         base_style.fg(Color::Yellow)
                     } else {
@@ -365,15 +367,21 @@ fn render_albums_view(frame: &mut Frame, app: &mut App, area: Rect) {
 fn render_all_tracks_view(frame: &mut Frame, app: &mut App, area: Rect) {
     let tracks = app.get_filtered_tracks();
     if tracks.is_empty() {
-        let msg = Paragraph::new("Brak utworów spełniających kryteria.")
+        let msg = Paragraph::new(app.i18n.t("no_filtered_tracks"))
             .alignment(Alignment::Center)
             .style(Style::default().fg(Color::DarkGray));
         frame.render_widget(msg, area);
         return;
     }
 
-    let header = Row::new(vec!["Wykonawca", "Tytuł", "Album", "Czas", "Format"])
-        .style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD));
+    let header = Row::new(vec![
+        app.i18n.t("col_artist"),
+        app.i18n.t("col_title"),
+        app.i18n.t("col_album"),
+        app.i18n.t("col_time"),
+        app.i18n.t("col_format"),
+    ])
+    .style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD));
 
     let current_path = app.audio.current_track.as_ref().map(|t| &t.path);
 
@@ -421,7 +429,7 @@ fn render_all_tracks_view(frame: &mut Frame, app: &mut App, area: Rect) {
 fn render_genres_view(frame: &mut Frame, app: &mut App, area: Rect) {
     let rows = app.get_genre_tree_rows();
     if rows.is_empty() {
-        let msg = Paragraph::new("Brak gatunków.")
+        let msg = Paragraph::new(app.i18n.t("no_genres"))
             .alignment(Alignment::Center)
             .style(Style::default().fg(Color::DarkGray));
         frame.render_widget(msg, area);
@@ -442,7 +450,7 @@ fn render_genres_view(frame: &mut Frame, app: &mut App, area: Rect) {
             match row {
                 crate::app::GenreTreeRow::GenreHeader { genre, expanded, track_count } => {
                     let icon = if *expanded { "v " } else { "> " };
-                    let text = format!("{}{:<25} [{} utw.]", icon, genre, track_count);
+                    let text = format!("{}{:<25} [{} {}]", icon, genre, track_count, app.i18n.t("tracks_short"));
                     let style = if is_selected {
                         base_style.fg(Color::Magenta)
                     } else {
@@ -543,17 +551,14 @@ fn render_visualizer_panel(frame: &mut Frame, app: &mut App, area: Rect) {
     let is_focused = app.focus_panel == FocusPanel::Visualizer;
     let border_color = if is_focused { Color::Cyan } else { Color::DarkGray };
 
-    let mode_str = match app.visualizer.mode {
-        VisualizerMode::Spectrum => "SPECTRUM (FFT)",
-        VisualizerMode::Waveform => "WAVEFORM (PCM)",
-    };
+    let title = format!(" 2. {} {} ", app.i18n.t("visualizer_title").to_uppercase(), app.i18n.t("visualizer_shortcuts"));
 
     let block = Block::default()
         .borders(Borders::ALL)
         .border_type(BorderType::Rounded)
         .border_style(Style::default().fg(border_color))
         .title(Span::styled(
-            format!(" 2. WIZUALIZATOR AUDIO ({}) [v - Przełącz | c - Pokaż/Ukryj] ", mode_str),
+            title,
             Style::default().fg(if is_focused { Color::Cyan } else { Color::White }).add_modifier(Modifier::BOLD),
         ));
 
@@ -685,12 +690,13 @@ fn render_now_playing_panel(frame: &mut Frame, app: &App, area: Rect, is_visuali
 
     let panel_num = if is_visualizer_shown { 3 } else { 2 };
     
+    let title = format!(" {}. {} ", panel_num, app.i18n.t("now_playing_title"));
     let block = Block::default()
         .borders(Borders::ALL)
         .border_type(BorderType::Rounded)
         .border_style(Style::default().fg(border_color))
         .title(Span::styled(
-            format!(" {}. TERAZ ODTWARZANE ", panel_num),
+            title,
             Style::default().fg(if is_focused { Color::Cyan } else { Color::White }).add_modifier(Modifier::BOLD),
         ));
 
@@ -716,27 +722,27 @@ fn render_now_playing_panel(frame: &mut Frame, app: &App, area: Rect, is_visuali
 
     // Playback state indicator
     let state_indicator = if app.audio.is_playing {
-        Span::styled("[>] Odtwarzanie: ", Style::default().fg(Color::Green).add_modifier(Modifier::BOLD))
+        Span::styled(app.i18n.t("play_state_playing"), Style::default().fg(Color::Green).add_modifier(Modifier::BOLD))
     } else if current.is_some() {
-        Span::styled("[||] Wstrzymano: ", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD))
+        Span::styled(app.i18n.t("play_state_paused"), Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD))
     } else {
-        Span::styled("[■] Zatrzymano: ", Style::default().fg(Color::DarkGray))
+        Span::styled(app.i18n.t("play_state_stopped"), Style::default().fg(Color::DarkGray))
     };
 
     let track_info = if let Some(t) = current {
         format!("{} - {}", t.artist, t.display_title())
     } else {
-        "Brak aktywnego utworu".to_string()
+        app.i18n.t("no_active_track").to_string()
     };
 
     // Volume bar
     let vol_percent = (app.audio.volume * 100.0).round() as u32;
     let vol_str = if app.audio.is_muted {
-        "Głośność: [WYCISZONO]".to_string()
+        app.i18n.t("volume_muted").to_string()
     } else {
         let filled_bars = (vol_percent / 10).min(10) as usize;
         let empty_bars = 10 - filled_bars;
-        format!("Głośność: [{}{}] {}%", "█".repeat(filled_bars), "░".repeat(empty_bars), vol_percent)
+        format!("{}[{}{}] {}%", app.i18n.t("volume"), "█".repeat(filled_bars), "░".repeat(empty_bars), vol_percent)
     };
 
     let line1 = Line::from(vec![
@@ -762,16 +768,17 @@ fn render_now_playing_panel(frame: &mut Frame, app: &App, area: Rect, is_visuali
     ]);
 
     // Metadata & Status: [Zapętlenie: Utwór] | [Mieszanie: WŁ] | Kolejka: 2/10 | Format: FLAC 96kHz 24-bit
-    let loop_status = format!("[Zapętlenie: {}]", app.audio.loop_mode.display_label());
-    let shuffle_status = format!("[Mieszanie: {}]", if app.audio.shuffle { "WŁ" } else { "WYŁ" });
+    let loop_status = format!("[{}: {}]", app.i18n.t("loop_status"), app.i18n.t(app.audio.loop_mode.display_label()));
+    let shuffle_status = format!("[{}: {}]", app.i18n.t("shuffle_status"), if app.audio.shuffle { app.i18n.t("on") } else { app.i18n.t("off") });
     let queue_status = format!(
-        "Kolejka: {}/{}",
+        "{}: {}/{}",
+        app.i18n.t("queue_status"),
         if app.queue.is_empty() { 0 } else { app.current_queue_index + 1 },
         app.queue.len()
     );
     let format_status = current
-        .map(|t| format!("Format: {}", t.format_desc))
-        .unwrap_or_else(|| "Format: -".to_string());
+        .map(|t| format!("{}: {}", app.i18n.t("format_status"), t.format_desc))
+        .unwrap_or_else(|| format!("{}: -", app.i18n.t("format_status")));
 
     let line3 = Line::from(vec![
         Span::styled(loop_status, Style::default().fg(if app.audio.loop_mode != LoopMode::Off { Color::Green } else { Color::DarkGray })),
@@ -789,7 +796,7 @@ fn render_now_playing_panel(frame: &mut Frame, app: &App, area: Rect, is_visuali
 
 fn render_footer(frame: &mut Frame, app: &App, area: Rect) {
     if app.is_searching {
-        let search_text = format!("[ Wyszukaj: {}_ ] (Naciśnij Esc aby anulować, Enter aby zatwierdzić)", app.search_query);
+        let search_text = format!("[ {}: {}_ ] ({})", app.i18n.t("search_footer"), app.search_query, app.i18n.t("search_cancel_hint"));
         let p = Paragraph::new(search_text)
             .style(Style::default().bg(Color::Cyan).fg(Color::Black).add_modifier(Modifier::BOLD));
         frame.render_widget(p, area);
@@ -807,21 +814,21 @@ fn render_footer(frame: &mut Frame, app: &App, area: Rect) {
 
     let hotkeys = Line::from(vec![
         Span::styled("[ Spacja ]", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
-        Span::styled(" Pauza/Play | ", Style::default().fg(Color::White)),
+        Span::styled(app.i18n.t("hk_play"), Style::default().fg(Color::White)),
         Span::styled("[ z / x ]", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
-        Span::styled(" Poprz/Nast | ", Style::default().fg(Color::White)),
+        Span::styled(app.i18n.t("hk_prev_next"), Style::default().fg(Color::White)),
         Span::styled("[ < / > ]", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
-        Span::styled(" Skok ±5s | ", Style::default().fg(Color::White)),
+        Span::styled(app.i18n.t("hk_seek"), Style::default().fg(Color::White)),
         Span::styled("[ s ]", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
-        Span::styled(" Shuffle | ", Style::default().fg(Color::White)),
+        Span::styled(app.i18n.t("hk_shuffle"), Style::default().fg(Color::White)),
         Span::styled("[ l ]", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
-        Span::styled(" Pętla | ", Style::default().fg(Color::White)),
+        Span::styled(app.i18n.t("hk_loop"), Style::default().fg(Color::White)),
         Span::styled("[ + / - ]", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
-        Span::styled(" Głośność | ", Style::default().fg(Color::White)),
+        Span::styled(app.i18n.t("hk_volume"), Style::default().fg(Color::White)),
         Span::styled("[ / ]", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
-        Span::styled(" Szukaj | ", Style::default().fg(Color::White)),
+        Span::styled(app.i18n.t("hk_search"), Style::default().fg(Color::White)),
         Span::styled("[ q ]", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
-        Span::styled(" Wyjście", Style::default().fg(Color::White)),
+        Span::styled(app.i18n.t("hk_quit"), Style::default().fg(Color::White)),
     ]);
     lines.push(hotkeys);
 

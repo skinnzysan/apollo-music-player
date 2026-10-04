@@ -3,6 +3,8 @@ pub mod audio;
 pub mod library;
 pub mod ui;
 pub mod visualizer;
+pub mod config;
+pub mod i18n;
 
 use std::env;
 use std::io::{self, stdout};
@@ -156,58 +158,58 @@ fn main() -> io::Result<()> {
                             }
                             KeyCode::Char(',') => {
                                 app.audio.seek_relative(-5);
-                                app.set_status("Przewinięto: -5s");
+                                app.set_status(app.i18n.t("status_seek_bwd"));
                             }
                             KeyCode::Char('.') => {
                                 app.audio.seek_relative(5);
-                                app.set_status("Przewinięto: +5s");
+                                app.set_status(app.i18n.t("status_seek_fwd"));
                             }
                             KeyCode::Char('+') | KeyCode::Char('=') => {
                                 app.audio.change_volume(0.05);
                                 let vol = (app.audio.volume * 100.0).round() as u32;
-                                app.set_status(format!("Głośność: {}%", vol));
+                                app.set_status(format!("{}: {}%", app.i18n.t("status_volume"), vol));
                             }
                             KeyCode::Char('-') => {
                                 app.audio.change_volume(-0.05);
                                 let vol = (app.audio.volume * 100.0).round() as u32;
-                                app.set_status(format!("Głośność: {}%", vol));
+                                app.set_status(format!("{}: {}%", app.i18n.t("status_volume"), vol));
                             }
                             KeyCode::Char('m') => {
                                 app.audio.toggle_mute();
                                 if app.audio.is_muted {
-                                    app.set_status("Dźwięk wyciszony");
+                                    app.set_status(app.i18n.t("status_muted"));
                                 } else {
                                     let vol = (app.audio.volume * 100.0).round() as u32;
-                                    app.set_status(format!("Przywrócono dźwięk: {}%", vol));
+                                    app.set_status(format!("{}: {}%", app.i18n.t("status_unmuted"), vol));
                                 }
                             }
                             KeyCode::Char('s') => {
                                 app.audio.toggle_shuffle();
-                                app.set_status(format!(
-                                    "Tryb losowy: {}",
-                                    if app.audio.shuffle { "WŁĄCZONY" } else { "WYŁĄCZONY" }
-                                ));
+                                app.set_status(if app.audio.shuffle {
+                                    app.i18n.t("status_shuffle_on").to_string()
+                                } else {
+                                    app.i18n.t("status_shuffle_off").to_string()
+                                });
                             }
                             KeyCode::Char('l') => {
                                 app.audio.cycle_loop_mode();
-                                app.set_status(format!(
-                                    "Tryb zapętlania: {}",
-                                    app.audio.loop_mode.display_label()
-                                ));
+                                let mode_str = match app.audio.loop_mode {
+                                    crate::audio::LoopMode::Off => app.i18n.t("loop_none"),
+                                    crate::audio::LoopMode::Track => app.i18n.t("loop_track"),
+                                    crate::audio::LoopMode::Queue => app.i18n.t("loop_queue"),
+                                };
+                                app.set_status(format!("{}: {}", app.i18n.t("status_loop"), mode_str));
                             }
                             KeyCode::Char('v') => {
                                 app.visualizer.toggle_mode();
-                                app.set_status(format!(
-                                    "Tryb wizualizatora: {:?}",
-                                    app.visualizer.mode
-                                ));
+                                app.set_status(format!("{}: {:?}", app.i18n.t("status_visualizer"), app.visualizer.mode));
                             }
                             KeyCode::Char('c') => {
                                 app.show_visualizer = !app.show_visualizer;
                                 app.set_status(if app.show_visualizer {
-                                    "Wizualizator widoczny"
+                                    app.i18n.t("status_visualizer_visible")
                                 } else {
-                                    "Wizualizator ukryty"
+                                    app.i18n.t("status_visualizer_hidden")
                                 });
                             }
                             KeyCode::Tab => {

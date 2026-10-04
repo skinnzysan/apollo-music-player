@@ -36,7 +36,7 @@ impl Track {
         if !self.title.trim().is_empty() {
             &self.title
         } else {
-            self.path.file_name().and_then(|s| s.to_str()).unwrap_or("Nieznany utwór")
+            self.path.file_name().and_then(|s| s.to_str()).unwrap_or("Unknown Track")
         }
     }
 
@@ -125,15 +125,15 @@ pub fn parse_track_metadata(path: &Path) -> Option<Track> {
     let default_title = path
         .file_stem()
         .and_then(|s| s.to_str())
-        .unwrap_or("Nieznany utwór")
+        .unwrap_or("Unknown Track")
         .to_string();
 
     Some(Track {
         path: path.to_path_buf(),
         title: title.unwrap_or(default_title),
-        artist: artist.unwrap_or_else(|| "Nieznany wykonawca".to_string()),
+        artist: artist.unwrap_or_else(|| "Unknown Artist".to_string()),
         album_artist,
-        album: album.unwrap_or_else(|| "Nieznany album".to_string()),
+        album: album.unwrap_or_else(|| "Unknown Album".to_string()),
         genre,
         year,
         track_number,

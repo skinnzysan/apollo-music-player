@@ -148,10 +148,16 @@ pub struct App {
     pub cancel_flag: Arc<AtomicBool>,
     pub is_scanning: bool,
     pub should_quit: bool,
+    
+    // Configuration & Localization
+    pub config: crate::config::AppConfig,
+    pub i18n: crate::i18n::I18n,
 }
 
 impl App {
     pub fn new(music_paths: Vec<PathBuf>) -> Self {
+        let config = crate::config::load_config();
+        let i18n = crate::i18n::I18n::new(config.language.clone());
         let cached = load_cached_library().unwrap_or_default();
         let cancel_flag = Arc::new(AtomicBool::new(false));
         let scanner_rx = Some(start_background_scanner(
@@ -172,6 +178,8 @@ impl App {
         let mut audio = AudioEngine::new();
         audio.volume = state.volume;
         audio.prev_volume = state.volume;
+        
+        let welcome_msg = i18n.t("welcome_msg").to_string();
 
         let mut app = Self {
             audio,
@@ -192,20 +200,20 @@ impl App {
             is_searching: false,
             search_query: String::new(),
             show_visualizer: state.show_visualizer,
-            status_message: Some((
-                "Witaj w Apollo! [Spacja] Odtwarzaj | [/] Szukaj".to_string(),
-                Instant::now(),
-            )),
+            status_message: Some((welcome_msg, Instant::now())),
             scanner_rx,
             cancel_flag,
             is_scanning: true,
             should_quit: false,
+            config,
+            i18n,
         };
 
         app.refresh_explorer();
         app.auto_expand_first();
         app
     }
+
 
     pub fn save_state(&self) {
         let state = AppState {
@@ -257,7 +265,8 @@ impl App {
                     }
                     ScannerMessage::Finished(count) => {
                         self.is_scanning = false;
-                        self.set_status(format!("Zakończono skanowanie. Liczba utworów: {}", count));
+                        let msg = self.i18n.t("scan_completed").replace("{}", &count.to_string());
+                        self.set_status(msg);
                         self.auto_expand_first();
                         break;
                     }
@@ -298,9 +307,13 @@ impl App {
             self.visualizer.set_sample_rate(rate);
         }
         if let Err(e) = self.audio.play_track(track.clone()) {
-            self.set_status(format!("Błąd odtwarzania: {}", e));
+            let msg = self.i18n.t("playback_error").replace("{}", &e.to_string());
+            self.set_status(msg);
         } else {
-            self.set_status(format!("Odtwarzanie: {} - {}", track.artist, track.display_title()));
+            let msg = self.i18n.t("playing_status")
+                .replace("{}", &track.artist)
+                .replacen("{}", &track.display_title(), 1);
+            self.set_status(msg);
         }
     }
 
@@ -323,7 +336,7 @@ impl App {
             self.play_track_at_queue_index(0);
         } else {
             self.audio.stop();
-            self.set_status("Koniec kolejki odtwarzania");
+            self.set_status(self.i18n.t("end_of_queue"));
         }
     }
 
@@ -411,7 +424,7 @@ impl App {
         let mut map: BTreeMap<String, Vec<Track>> = BTreeMap::new();
         for track in filtered {
             let album_name = if track.album.trim().is_empty() {
-                "Nieznany album".to_string()
+                self.i18n.t("unknown_album").to_string()
             } else {
                 track.album.clone()
             };
@@ -431,11 +444,11 @@ impl App {
             artists.sort();
             artists.dedup();
             let artist_display = if artists.len() > 1 {
-                "Różni wykonawcy".to_string()
+                self.i18n.t("various_artists").to_string()
             } else if let Some(a) = artists.first() {
                 a.clone()
             } else {
-                "Nieznany wykonawca".to_string()
+                self.i18n.t("unknown_artist").to_string()
             };
 
             rows.push(AlbumTreeRow::AlbumHeader {
@@ -469,7 +482,7 @@ impl App {
                 .as_ref()
                 .map(|s| s.trim())
                 .filter(|s| !s.is_empty())
-                .unwrap_or("Nieokreślony")
+                .unwrap_or(self.i18n.t("unknown_genre"))
                 .to_string();
             map.entry(g).or_default().push(track);
         }
@@ -533,7 +546,7 @@ impl App {
             if let Some(parent) = self.explorer_dir.parent() {
                 self.explorer_items.push(ExplorerItem {
                     path: parent.to_path_buf(),
-                    name: ".. [Katalog wyżej]".to_string(),
+                    name: format!(".. [{}]", self.i18n.t("parent_folder")),
                     is_dir: true,
                     is_audio: false,
                 });
@@ -654,8 +667,8 @@ impl App {
                                 .tracks
                                 .iter()
                                 .filter(|t| {
-                                    t.genre.as_ref().map(|s| s.trim()).filter(|s| !s.is_empty()).unwrap_or("Nieokreślony") ==
-                                        track.genre.as_ref().map(|s| s.trim()).filter(|s| !s.is_empty()).unwrap_or("Nieokreślony")
+                                    t.genre.as_ref().map(|s| s.trim()).filter(|s| !s.is_empty()).unwrap_or(self.i18n.t("unknown_genre")) ==
+                                        track.genre.as_ref().map(|s| s.trim()).filter(|s| !s.is_empty()).unwrap_or(self.i18n.t("unknown_genre"))
                                 })
                                 .cloned()
                                 .collect();
