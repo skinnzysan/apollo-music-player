@@ -1,24 +1,94 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
-<svg width="100%" height="100%" viewBox="0 0 720 220" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xml:space="preserve" xmlns:affinity="https://www.affinity.studio/" style="fill-rule:evenodd;clip-rule:evenodd;stroke-linejoin:round;stroke-miterlimit:2;">
-    <g transform="matrix(1,0,0,1,114.146532,35.457867)">
-        <g transform="matrix(1,0,0,1,112.931674,72.316059)">
-            <text x="0px" y="0px" style="font-family:'Arial-BoldMT', 'Arial', sans-serif;font-weight:700;font-size:72px;fill:rgb(225,245,252);">A<tspan x="46.236px 84.457px 122.677px 136.921px 151.165px " y="0px 0px 0px 0px 0px ">pollo</tspan></text>
+<svg
+   width="720"
+   height="168"
+   viewBox="0 0 720 168"
+   version="1.1"
+   xml:space="preserve"
+   style="clip-rule:evenodd;fill-rule:evenodd;stroke-linejoin:round;stroke-miterlimit:2"
+   id="svg7"
+   sodipodi:docname="Header.svg"
+   inkscape:version="1.4.4 (dcaf3e7d9e, 2026-05-05)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg"><defs
+   id="defs7" /><sodipodi:namedview
+   id="namedview7"
+   pagecolor="#ffffff"
+   bordercolor="#000000"
+   borderopacity="0.25"
+   inkscape:showpageshadow="2"
+   inkscape:pageopacity="0.0"
+   inkscape:pagecheckerboard="0"
+   inkscape:deskcolor="#d1d1d1"
+   inkscape:zoom="4.4652778"
+   inkscape:cx="360"
+   inkscape:cy="109.95956"
+   inkscape:window-width="3410"
+   inkscape:window-height="1345"
+   inkscape:window-x="0"
+   inkscape:window-y="0"
+   inkscape:window-maximized="1"
+   inkscape:current-layer="svg7" />
+    
+    
+<g
+   transform="translate(114.14653,9.8006397)"
+   id="g6">
+        <g
+   transform="translate(112.93167,72.316059)"
+   id="g1">
+            <text
+   x="0"
+   y="0"
+   style="font-weight:700;font-size:72px;font-family:Arial-BoldMT, Arial, sans-serif;fill:#e1f5fc"
+   id="text1">A<tspan
+   x="46.236 84.457001 122.677 136.92101 151.16499"
+   y="0 0 0 0 0"
+   id="tspan1">pollo</tspan></text>
         </g>
-        <g transform="matrix(1,0,0,1,-127.068326,-17.683941)">
-            <path d="M451.38,38.461L466.589,104.203L454.569,104.203L439.36,38.461L451.38,38.461Z" style="fill:rgb(255,127,80);"/>
+        <g
+   transform="translate(-127.06833,-17.683941)"
+   id="g2">
+            <path
+   d="m 451.38,38.461 15.209,65.742 h -12.02 L 439.36,38.461 Z"
+   style="fill:#ff7f50"
+   id="path1" />
         </g>
-        <g transform="matrix(1,0,0,1,-113.453346,-17.683941)">
-            <path d="M451.38,38.461L466.589,104.203L454.569,104.203L439.36,38.461L451.38,38.461Z" style="fill:rgb(255,209,102);"/>
+        <g
+   transform="translate(-113.45335,-17.683941)"
+   id="g3">
+            <path
+   d="m 451.38,38.461 15.209,65.742 h -12.02 L 439.36,38.461 Z"
+   style="fill:#ffd166"
+   id="path2" />
         </g>
-        <g transform="matrix(1,0,0,1,-99.838366,-17.683941)">
-            <path d="M451.38,38.461L466.589,104.203L454.569,104.203L439.36,38.461L451.38,38.461Z" style="fill:rgb(6,214,160);"/>
+        <g
+   transform="translate(-99.838366,-17.683941)"
+   id="g4">
+            <path
+   d="m 451.38,38.461 15.209,65.742 h -12.02 L 439.36,38.461 Z"
+   style="fill:#06d6a0"
+   id="path3" />
         </g>
-        <g transform="matrix(1,0,0,1,-86.223385,-17.683941)">
-            <path d="M451.38,38.461L466.589,104.203L454.569,104.203L439.36,38.461L451.38,38.461Z" style="fill:rgb(17,138,178);"/>
+        <g
+   transform="translate(-86.223385,-17.683941)"
+   id="g5">
+            <path
+   d="m 451.38,38.461 15.209,65.742 h -12.02 L 439.36,38.461 Z"
+   style="fill:#118ab2"
+   id="path4" />
         </g>
-    </g>
-    <g transform="matrix(1,0,0,1,360.79541,159.977051)">
-        <text x="-136.415px" y="0px" style="font-family:'ArialMT', 'Arial', sans-serif;font-size:18px;fill:rgb(156,163,175);">Audiophile quality<tspan x="3.349px 8.35px " y="0px 0px ">, </tspan>terminal speed.</text>
-    </g>
-</svg>
+    </g><g
+   transform="translate(360.79541,134.31982)"
+   id="g7">
+        <text
+   x="-136.41499"
+   y="0"
+   style="font-size:18px;font-family:ArialMT, Arial, sans-serif;fill:#9ca3af"
+   id="text6">Audiophile quality<tspan
+   x="3.349 8.3500004"
+   y="0 0"
+   id="tspan6">, </tspan>terminal speed.</text>
+    </g></svg>
