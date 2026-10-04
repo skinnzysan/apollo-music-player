@@ -28,7 +28,7 @@ pub fn draw_ui(frame: &mut Frame, app: &mut App) {
     }
 
 
-    let show_logo = size.width >= 50 && size.height >= 25; // Potrzeba więcej miejsca w pionie
+    let show_logo = app.config.show_logo && size.width >= 50 && size.height >= 25; // Potrzeba więcej miejsca w pionie
     let (vis_height, can_show_vis) = if size.height >= 26 {
         (8, true)
     } else if size.height >= 20 {
@@ -48,11 +48,12 @@ pub fn draw_ui(frame: &mut Frame, app: &mut App) {
     }
     constraints.push(Constraint::Length(5));           // Now Playing
     
-    let mut footer_height = (155 + size.width.saturating_sub(1)) / size.width.max(1);
-    if app.get_status().is_some() {
-        footer_height += 1;
-    }
-    constraints.push(Constraint::Length(footer_height)); // Hotkeys / status footer
+    let footer_height = if app.show_hotkeys {
+        (155 + size.width.saturating_sub(1)) / size.width.max(1)
+    } else {
+        0
+    };
+    constraints.push(Constraint::Length(footer_height)); // Hotkeys footer
 
     let chunks = Layout::default()
         .direction(Direction::Vertical)
@@ -135,57 +136,50 @@ fn render_library_panel(frame: &mut Frame, app: &mut App, area: Rect) {
         LibraryTab::Explorer => 4,
     };
 
-    let title = format!(" 1. {} ", app.i18n.t("library_title").to_uppercase());
+    let mut tab_spans = vec![
+        Span::styled(
+            format!(" 1. {} ", app.i18n.t("library_title").to_uppercase()),
+            Style::default().fg(if is_focused { Color::Cyan } else { Color::Reset }).add_modifier(Modifier::BOLD)
+        ),
+    ];
+
+    for (i, title) in tab_titles.iter().enumerate() {
+        let label = format!(" F{} - {} ", i + 1, title);
+        if i == selected_tab_idx {
+            tab_spans.push(Span::styled(
+                label,
+                Style::default().bg(Color::Cyan).fg(Color::Black).add_modifier(Modifier::BOLD)
+            ));
+        } else {
+            tab_spans.push(Span::styled(
+                label,
+                Style::default().bg(Color::DarkGray).fg(Color::White).add_modifier(Modifier::BOLD)
+            ));
+        }
+        if i < tab_titles.len() - 1 {
+            tab_spans.push(Span::raw(" "));
+        }
+    }
+
     let outer_block = Block::default()
         .borders(Borders::ALL)
         .border_type(BorderType::Rounded)
         .border_style(Style::default().fg(border_color))
-        .title(Span::styled(
-            title,
-            Style::default().fg(if is_focused { Color::Cyan } else { Color::White }).add_modifier(Modifier::BOLD),
-        ));
+        .title(Line::from(tab_spans));
 
     frame.render_widget(outer_block, area);
 
-    // Inner layout for Tabs and Content
-    let inner_area = Rect {
-        x: area.x + 1,
-        y: area.y + 1,
-        width: area.width.saturating_sub(2),
-        height: area.height.saturating_sub(2),
+    // Inner layout for Content
+    let content_area = Rect {
+        x: area.x + 2,
+        y: area.y + 2,
+        width: area.width.saturating_sub(4),
+        height: area.height.saturating_sub(4),
     };
 
-    if inner_area.height < 2 {
+    if content_area.height < 1 {
         return;
     }
-
-    let tab_lines_count = if inner_area.width < 80 { 2 } else { 1 };
-    let tab_layout = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints([Constraint::Length(tab_lines_count), Constraint::Min(1)])
-        .split(inner_area);
-
-    let mut tab_spans = Vec::new();
-    for (i, title) in tab_titles.iter().enumerate() {
-        if i == selected_tab_idx {
-            tab_spans.push(Span::styled(
-                *title,
-                Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD).add_modifier(Modifier::UNDERLINED)
-            ));
-        } else {
-            tab_spans.push(Span::styled(*title, Style::default().fg(Color::DarkGray)));
-        }
-        if i < tab_titles.len() - 1 {
-            tab_spans.push(Span::styled(" | ", Style::default().fg(Color::DarkGray)));
-        }
-    }
-
-    let tabs_paragraph = Paragraph::new(Line::from(tab_spans))
-        .wrap(Wrap { trim: true });
-
-    frame.render_widget(tabs_paragraph, tab_layout[0]);
-
-    let content_area = tab_layout[1];
 
     match app.active_tab {
         LibraryTab::Artists => render_artist_tree(frame, app, content_area),
@@ -216,9 +210,9 @@ fn render_artist_tree(frame: &mut Frame, app: &mut App, area: Rect) {
         .map(|(idx, row)| {
             let is_selected = idx == app.selected_index;
             let base_style = if is_selected {
-                Style::default().bg(Color::DarkGray).fg(Color::White).add_modifier(Modifier::BOLD)
+                Style::default().bg(Color::Cyan).fg(Color::Black).add_modifier(Modifier::BOLD)
             } else {
-                Style::default().fg(Color::White)
+                Style::default().fg(Color::Reset)
             };
 
             match row {
@@ -228,10 +222,10 @@ fn render_artist_tree(frame: &mut Frame, app: &mut App, area: Rect) {
                     album_count,
                     track_count,
                 } => {
-                    let icon = if *expanded { "v " } else { "> " };
-                    let text = format!("{}{} ({} {}, {} {})", icon, artist, album_count, app.i18n.t("albums_count"), track_count, app.i18n.t("tracks_short"));
+                    let icon = if *expanded { " v " } else { " > " };
+                    let text = format!("{}{} ({} {}, {} {})", icon, artist, album_count, app.i18n.t("albums_count"), track_count, app.i18n.pluralize_tracks(*track_count));
                     let style = if is_selected {
-                        base_style.fg(Color::Cyan)
+                        base_style
                     } else {
                         Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)
                     };
@@ -244,11 +238,11 @@ fn render_artist_tree(frame: &mut Frame, app: &mut App, area: Rect) {
                     track_count,
                     ..
                 } => {
-                    let icon = if *expanded { "  v " } else { "  > " };
+                    let icon = if *expanded { "   v " } else { "   > " };
                     let yr_str = year.map(|y| format!(" ({})", y)).unwrap_or_default();
-                    let text = format!("{}{}{} [{} {}]", icon, album, yr_str, track_count, app.i18n.t("tracks_short"));
+                    let text = format!("{}{}{} [{} {}]", icon, album, yr_str, track_count, app.i18n.pluralize_tracks(*track_count));
                     let style = if is_selected {
-                        base_style.fg(Color::Yellow)
+                        base_style
                     } else {
                         Style::default().fg(Color::Yellow)
                     };
@@ -271,7 +265,7 @@ fn render_artist_tree(frame: &mut Frame, app: &mut App, area: Rect) {
 
                     let style = if *is_current {
                         if is_selected {
-                            base_style.fg(Color::Green)
+                            base_style
                         } else {
                             Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)
                         }
@@ -305,9 +299,9 @@ fn render_albums_view(frame: &mut Frame, app: &mut App, area: Rect) {
         .map(|(idx, row)| {
             let is_selected = idx == app.selected_index;
             let base_style = if is_selected {
-                Style::default().bg(Color::DarkGray).fg(Color::White).add_modifier(Modifier::BOLD)
+                Style::default().bg(Color::Cyan).fg(Color::Black).add_modifier(Modifier::BOLD)
             } else {
-                Style::default().fg(Color::White)
+                Style::default().fg(Color::Reset)
             };
 
             match row {
@@ -319,11 +313,11 @@ fn render_albums_view(frame: &mut Frame, app: &mut App, area: Rect) {
                     track_count,
                     ..
                 } => {
-                    let icon = if *expanded { "v " } else { "> " };
+                    let icon = if *expanded { " v " } else { " > " };
                     let yr_str = year.map(|y| format!(" ({})", y)).unwrap_or_default();
-                    let text = format!("{}{}{} - {} [{} {}]", icon, artist, yr_str, album, track_count, app.i18n.t("tracks_short"));
+                    let text = format!("{}{}{} - {} [{} {}]", icon, artist, yr_str, album, track_count, app.i18n.pluralize_tracks(*track_count));
                     let style = if is_selected {
-                        base_style.fg(Color::Yellow)
+                        base_style
                     } else {
                         Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)
                     };
@@ -346,7 +340,7 @@ fn render_albums_view(frame: &mut Frame, app: &mut App, area: Rect) {
 
                     let style = if *is_current {
                         if is_selected {
-                            base_style.fg(Color::Green)
+                            base_style
                         } else {
                             Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)
                         }
@@ -393,18 +387,18 @@ fn render_all_tracks_view(frame: &mut Frame, app: &mut App, area: Rect) {
             let is_current = current_path == Some(&t.path);
 
             let style = if is_selected {
-                Style::default().bg(Color::DarkGray).fg(if is_current { Color::Green } else { Color::White }).add_modifier(Modifier::BOLD)
+                Style::default().bg(Color::Cyan).fg(Color::Black).add_modifier(Modifier::BOLD)
             } else if is_current {
                 Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)
             } else {
-                Style::default().fg(Color::White)
+                Style::default().fg(Color::Reset)
             };
 
             let prefix = if is_current { "* " } else { "  " };
             let title_display = format!("{}{}", prefix, t.display_title());
 
             Row::new(vec![
-                t.artist.clone(),
+                format!(" {}", t.artist),
                 title_display,
                 t.album.clone(),
                 t.duration_formatted(),
@@ -442,17 +436,17 @@ fn render_genres_view(frame: &mut Frame, app: &mut App, area: Rect) {
         .map(|(idx, row)| {
             let is_selected = idx == app.selected_index;
             let base_style = if is_selected {
-                Style::default().bg(Color::DarkGray).fg(Color::White).add_modifier(Modifier::BOLD)
+                Style::default().bg(Color::Cyan).fg(Color::Black).add_modifier(Modifier::BOLD)
             } else {
-                Style::default().fg(Color::White)
+                Style::default().fg(Color::Reset)
             };
 
             match row {
                 crate::app::GenreTreeRow::GenreHeader { genre, expanded, track_count } => {
-                    let icon = if *expanded { "v " } else { "> " };
-                    let text = format!("{}{:<25} [{} {}]", icon, genre, track_count, app.i18n.t("tracks_short"));
+                    let icon = if *expanded { " v " } else { " > " };
+                    let text = format!("{}{:<25} [{} {}]", icon, genre, track_count, app.i18n.pluralize_tracks(*track_count));
                     let style = if is_selected {
-                        base_style.fg(Color::Magenta)
+                        base_style
                     } else {
                         Style::default().fg(Color::Magenta).add_modifier(Modifier::BOLD)
                     };
@@ -471,7 +465,7 @@ fn render_genres_view(frame: &mut Frame, app: &mut App, area: Rect) {
 
                     let style = if *is_current {
                         if is_selected {
-                            base_style.fg(Color::Green)
+                            base_style
                         } else {
                             Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)
                         }
@@ -497,14 +491,14 @@ fn render_explorer_view(frame: &mut Frame, app: &mut App, area: Rect) {
         .map(|(idx, item)| {
             let is_selected = idx == app.selected_index;
             let style = if is_selected {
-                Style::default().bg(Color::DarkGray).fg(Color::White).add_modifier(Modifier::BOLD)
+                Style::default().bg(Color::Cyan).fg(Color::Black).add_modifier(Modifier::BOLD)
             } else if item.is_dir {
                 Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)
             } else {
-                Style::default().fg(Color::White)
+                Style::default().fg(Color::Reset)
             };
 
-            let prefix = if item.is_dir { "[DIR] " } else { "[MUS] " };
+            let prefix = if item.is_dir { " [DIR] " } else { " [MUS] " };
             ListItem::new(Span::styled(format!("{}{}", prefix, item.name), style))
         })
         .collect();
@@ -551,16 +545,24 @@ fn render_visualizer_panel(frame: &mut Frame, app: &mut App, area: Rect) {
     let is_focused = app.focus_panel == FocusPanel::Visualizer;
     let border_color = if is_focused { Color::Cyan } else { Color::DarkGray };
 
-    let title = format!(" 2. {} {} ", app.i18n.t("visualizer_title").to_uppercase(), app.i18n.t("visualizer_shortcuts"));
+    let title_line = if app.show_hotkeys {
+        Line::from(vec![
+            Span::styled(format!(" 2. {} ", app.i18n.t("visualizer_title").to_uppercase()), Style::default().fg(if is_focused { Color::Cyan } else { Color::Reset }).add_modifier(Modifier::BOLD)),
+            Span::styled(if app.config.language == crate::config::Language::Polish { " V - Przełącz " } else { " V - Toggle " }, Style::default().bg(Color::Cyan).fg(Color::Black).add_modifier(Modifier::BOLD)),
+            Span::raw(" "),
+            Span::styled(if app.config.language == crate::config::Language::Polish { " C - Pokaż/Ukryj " } else { " C - Show/Hide " }, Style::default().bg(Color::Cyan).fg(Color::Black).add_modifier(Modifier::BOLD)),
+        ])
+    } else {
+        Line::from(vec![
+            Span::styled(format!(" 2. {} ", app.i18n.t("visualizer_title").to_uppercase()), Style::default().fg(if is_focused { Color::Cyan } else { Color::Reset }).add_modifier(Modifier::BOLD)),
+        ])
+    };
 
     let block = Block::default()
         .borders(Borders::ALL)
         .border_type(BorderType::Rounded)
         .border_style(Style::default().fg(border_color))
-        .title(Span::styled(
-            title,
-            Style::default().fg(if is_focused { Color::Cyan } else { Color::White }).add_modifier(Modifier::BOLD),
-        ));
+        .title(title_line);
 
     let inner = block.inner(area);
     frame.render_widget(block, area);
@@ -575,7 +577,10 @@ fn render_visualizer_panel(frame: &mut Frame, app: &mut App, area: Rect) {
     }
 }
 
-fn render_spectrum(frame: &mut Frame, app: &mut App, area: Rect) {
+fn render_spectrum(frame: &mut Frame, app: &mut App, mut area: Rect) {
+    area.x += 1;
+    area.width = area.width.saturating_sub(2);
+    
     let width = area.width as usize;
     let height = area.height as usize;
     if width == 0 || height == 0 {
@@ -607,22 +612,22 @@ fn render_spectrum(frame: &mut Frame, app: &mut App, area: Rect) {
             let row_min_sub = row_from_bottom * 8;
 
             let (ch, color) = if total_sublevels >= row_min_sub + 8 {
-                let col = if row_from_bottom as f32 / height as f32 > 0.8 {
-                    Color::Red
-                } else if row_from_bottom as f32 / height as f32 > 0.5 {
-                    Color::Yellow
-                } else {
-                    Color::Cyan
+                let col = match app.config.visualizer_color {
+                    crate::config::VisualizerColorMode::Rainbow => {
+                        let colors = [Color::Red, Color::Yellow, Color::Green, Color::Cyan, Color::Blue, Color::Magenta];
+                        colors[b_idx % colors.len()]
+                    }
+                    crate::config::VisualizerColorMode::Solid => Color::Cyan,
                 };
                 (UNICODE_BLOCKS[8], col)
             } else if total_sublevels > row_min_sub {
                 let sub = total_sublevels - row_min_sub;
-                let col = if row_from_bottom as f32 / height as f32 > 0.8 {
-                    Color::Red
-                } else if row_from_bottom as f32 / height as f32 > 0.5 {
-                    Color::Yellow
-                } else {
-                    Color::Green
+                let col = match app.config.visualizer_color {
+                    crate::config::VisualizerColorMode::Rainbow => {
+                        let colors = [Color::Red, Color::Yellow, Color::Green, Color::Cyan, Color::Blue, Color::Magenta];
+                        colors[b_idx % colors.len()]
+                    }
+                    crate::config::VisualizerColorMode::Solid => Color::Cyan,
                 };
                 (UNICODE_BLOCKS[sub.min(8)], col)
             } else {
@@ -673,11 +678,26 @@ fn render_waveform(frame: &mut Frame, app: &App, area: Rect) {
 
     let mut lines = Vec::with_capacity(height);
     for row in 0..height {
-        let row_str: String = grid[row].iter().collect();
-        lines.push(Line::from(Span::styled(
-            row_str,
-            Style::default().fg(Color::Cyan),
-        )));
+        match app.config.visualizer_color {
+            crate::config::VisualizerColorMode::Solid => {
+                let row_str: String = grid[row].iter().collect();
+                lines.push(Line::from(Span::styled(
+                    row_str,
+                    Style::default().fg(Color::Cyan),
+                )));
+            }
+            crate::config::VisualizerColorMode::Rainbow => {
+                let colors = [Color::Red, Color::Yellow, Color::Green, Color::Cyan, Color::Blue, Color::Magenta];
+                let mut spans = Vec::with_capacity(width);
+                for (x, &ch) in grid[row].iter().enumerate() {
+                    spans.push(Span::styled(
+                        ch.to_string(),
+                        Style::default().fg(colors[x % colors.len()]),
+                    ));
+                }
+                lines.push(Line::from(spans));
+            }
+        }
     }
 
     let p = Paragraph::new(lines);
@@ -697,10 +717,12 @@ fn render_now_playing_panel(frame: &mut Frame, app: &App, area: Rect, is_visuali
         .border_style(Style::default().fg(border_color))
         .title(Span::styled(
             title,
-            Style::default().fg(if is_focused { Color::Cyan } else { Color::White }).add_modifier(Modifier::BOLD),
+            Style::default().fg(if is_focused { Color::Cyan } else { Color::Reset }).add_modifier(Modifier::BOLD),
         ));
 
-    let inner = block.inner(area);
+    let mut inner = block.inner(area);
+    inner.x += 1;
+    inner.width = inner.width.saturating_sub(2);
     frame.render_widget(block, area);
 
     if inner.height < 3 {
@@ -721,12 +743,20 @@ fn render_now_playing_panel(frame: &mut Frame, app: &App, area: Rect, is_visuali
     };
 
     // Playback state indicator
-    let state_indicator = if app.audio.is_playing {
-        Span::styled(app.i18n.t("play_state_playing"), Style::default().fg(Color::Green).add_modifier(Modifier::BOLD))
+    let state_str = if app.audio.is_playing {
+        app.i18n.t("play_state_playing")
     } else if current.is_some() {
-        Span::styled(app.i18n.t("play_state_paused"), Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD))
+        app.i18n.t("play_state_paused")
     } else {
-        Span::styled(app.i18n.t("play_state_stopped"), Style::default().fg(Color::DarkGray))
+        app.i18n.t("play_state_stopped")
+    };
+    
+    let state_indicator = if app.audio.is_playing {
+        Span::styled(state_str, Style::default().fg(Color::Green).add_modifier(Modifier::BOLD))
+    } else if current.is_some() {
+        Span::styled(state_str, Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD))
+    } else {
+        Span::styled(state_str, Style::default().fg(Color::DarkGray))
     };
 
     let track_info = if let Some(t) = current {
@@ -745,10 +775,16 @@ fn render_now_playing_panel(frame: &mut Frame, app: &App, area: Rect, is_visuali
         format!("{}[{}{}] {}%", app.i18n.t("volume"), "█".repeat(filled_bars), "░".repeat(empty_bars), vol_percent)
     };
 
+    let left_len = state_str.chars().count() + track_info.chars().count();
+    let vol_len = vol_str.chars().count();
+    let padding_len = (inner.width as usize).saturating_sub(left_len + vol_len);
+    let padding_str = " ".repeat(padding_len);
+
     let line1 = Line::from(vec![
         state_indicator,
-        Span::styled(track_info, Style::default().fg(Color::White).add_modifier(Modifier::BOLD)),
-        Span::styled(format!(" {:>width$}", vol_str, width = inner.width.saturating_sub(50) as usize), Style::default().fg(Color::Cyan)),
+        Span::styled(track_info, Style::default().fg(Color::Reset).add_modifier(Modifier::BOLD)),
+        Span::styled(padding_str, Style::default()),
+        Span::styled(vol_str, Style::default().fg(Color::Cyan)),
     ]);
 
     // Progress bar line: 01:14 [================--------] 02:49
@@ -763,7 +799,7 @@ fn render_now_playing_panel(frame: &mut Frame, app: &App, area: Rect, is_visuali
 
     let line2 = Line::from(vec![
         Span::styled(time_prefix, Style::default().fg(Color::Cyan)),
-        Span::styled(progress_bar_str, Style::default().fg(Color::White)),
+        Span::styled(progress_bar_str, Style::default().fg(Color::Reset)),
         Span::styled(time_suffix, Style::default().fg(Color::Cyan)),
     ]);
 
@@ -780,21 +816,30 @@ fn render_now_playing_panel(frame: &mut Frame, app: &App, area: Rect, is_visuali
         .map(|t| format!("{}: {}", app.i18n.t("format_status"), t.format_desc))
         .unwrap_or_else(|| format!("{}: -", app.i18n.t("format_status")));
 
-    let line3 = Line::from(vec![
+    let mut line3_spans = vec![
         Span::styled(loop_status, Style::default().fg(if app.audio.loop_mode != LoopMode::Off { Color::Green } else { Color::DarkGray })),
         Span::styled(" | ", Style::default().fg(Color::DarkGray)),
         Span::styled(shuffle_status, Style::default().fg(if app.audio.shuffle { Color::Green } else { Color::DarkGray })),
         Span::styled(" | ", Style::default().fg(Color::DarkGray)),
-        Span::styled(queue_status, Style::default().fg(Color::White)),
+        Span::styled(queue_status, Style::default().fg(Color::Reset)),
         Span::styled(" | ", Style::default().fg(Color::DarkGray)),
         Span::styled(format_status, Style::default().fg(Color::Yellow)),
-    ]);
+    ];
 
-    let p = Paragraph::new(vec![line1, line2, line3]);
+    if let Some(status) = app.get_status() {
+        line3_spans.push(Span::styled(" | ", Style::default().fg(Color::DarkGray)));
+        line3_spans.push(Span::styled("[i]", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)));
+        line3_spans.push(Span::styled(format!(" {}", status), Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)));
+    }
+
+    let p = Paragraph::new(vec![line1, line2, Line::from(line3_spans)]);
     frame.render_widget(p, inner);
 }
 
 fn render_footer(frame: &mut Frame, app: &App, area: Rect) {
+    if area.height == 0 {
+        return;
+    }
     if app.is_searching {
         let search_text = format!("[ {}: {}_ ] ({})", app.i18n.t("search_footer"), app.search_query, app.i18n.t("search_cancel_hint"));
         let p = Paragraph::new(search_text)
@@ -804,34 +849,28 @@ fn render_footer(frame: &mut Frame, app: &App, area: Rect) {
     }
 
     let mut lines = Vec::new();
-    
-    if let Some(status) = app.get_status() {
-        lines.push(Line::from(Span::styled(
-            format!("  [i] {}", status),
-            Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)
-        )));
-    }
 
-    let hotkeys = Line::from(vec![
-        Span::styled("[ Spacja ]", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
-        Span::styled(app.i18n.t("hk_play"), Style::default().fg(Color::White)),
-        Span::styled("[ z / x ]", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
-        Span::styled(app.i18n.t("hk_prev_next"), Style::default().fg(Color::White)),
-        Span::styled("[ < / > ]", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
-        Span::styled(app.i18n.t("hk_seek"), Style::default().fg(Color::White)),
-        Span::styled("[ s ]", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
-        Span::styled(app.i18n.t("hk_shuffle"), Style::default().fg(Color::White)),
-        Span::styled("[ l ]", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
-        Span::styled(app.i18n.t("hk_loop"), Style::default().fg(Color::White)),
-        Span::styled("[ + / - ]", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
-        Span::styled(app.i18n.t("hk_volume"), Style::default().fg(Color::White)),
-        Span::styled("[ / ]", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
-        Span::styled(app.i18n.t("hk_search"), Style::default().fg(Color::White)),
-        Span::styled("[ q ]", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
-        Span::styled(app.i18n.t("hk_quit"), Style::default().fg(Color::White)),
+        let hotkeys = Line::from(vec![
+        Span::styled(format!(" Spacja - {} ", app.i18n.t("hk_play")), Style::default().bg(Color::Cyan).fg(Color::Black).add_modifier(Modifier::BOLD)),
+        Span::raw(" "),
+        Span::styled(format!(" Z / X - {} ", app.i18n.t("hk_prev_next")), Style::default().bg(Color::Cyan).fg(Color::Black).add_modifier(Modifier::BOLD)),
+        Span::raw(" "),
+        Span::styled(format!(" < / > - {} ", app.i18n.t("hk_seek")), Style::default().bg(Color::Cyan).fg(Color::Black).add_modifier(Modifier::BOLD)),
+        Span::raw(" "),
+        Span::styled(format!(" S - {} ", app.i18n.t("hk_shuffle")), Style::default().bg(Color::Cyan).fg(Color::Black).add_modifier(Modifier::BOLD)),
+        Span::raw(" "),
+        Span::styled(format!(" L - {} ", app.i18n.t("hk_loop")), Style::default().bg(Color::Cyan).fg(Color::Black).add_modifier(Modifier::BOLD)),
+        Span::raw(" "),
+        Span::styled(format!(" + / - - {} ", app.i18n.t("hk_volume")), Style::default().bg(Color::Cyan).fg(Color::Black).add_modifier(Modifier::BOLD)),
+        Span::raw(" "),
+        Span::styled(format!(" / - {} ", app.i18n.t("hk_search")), Style::default().bg(Color::Cyan).fg(Color::Black).add_modifier(Modifier::BOLD)),
+        Span::raw(" "),
+        Span::styled(if app.config.language == crate::config::Language::Polish { " H - Ukryj Skróty " } else { " H - Hide Hotkeys " }, Style::default().bg(Color::Cyan).fg(Color::Black).add_modifier(Modifier::BOLD)),
+        Span::raw(" "),
+        Span::styled(format!(" Q - {} ", app.i18n.t("hk_quit")), Style::default().bg(Color::Cyan).fg(Color::Black).add_modifier(Modifier::BOLD)),
     ]);
     lines.push(hotkeys);
 
-    let p = Paragraph::new(lines).wrap(Wrap { trim: true });
+    let p = Paragraph::new(lines).wrap(Wrap { trim: false });
     frame.render_widget(p, area);
 }

@@ -63,13 +63,14 @@ fn main() -> io::Result<()> {
             println!("    l                Loop mode (None / Track / Queue)");
             println!("    v                Toggle visualizer mode (Spectrum / Waveform)");
             println!("    c                Show / Hide visualizer");
+            println!("    h                Show / Hide hotkeys in the UI");
             println!("    F1 - F5          Tabs (Artists, Albums, Tracks, Genres, Explorer)");
             println!("    /                Search");
             println!("    Esc              Cancel search");
             println!("    q, Ctrl+c        Quit");
             return Ok(());
         } else if arg == "-V" || arg == "--version" {
-            println!("Apollo 0.1.0");
+            println!("Apollo 1.1.0");
             return Ok(());
         }
     }
@@ -222,6 +223,9 @@ fn main() -> io::Result<()> {
                                 } else {
                                     app.i18n.t("status_visualizer_hidden")
                                 });
+                            }
+                            KeyCode::Char('h') | KeyCode::Char('H') => {
+                                app.show_hotkeys = !app.show_hotkeys;
                             }
                             KeyCode::F(1) => {
                                 app.switch_tab(LibraryTab::Artists);

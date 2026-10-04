@@ -16,12 +16,34 @@ impl Default for Language {
     }
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub enum VisualizerColorMode {
+    #[serde(rename = "solid")]
+    Solid,
+    #[serde(rename = "rainbow")]
+    Rainbow,
+}
+
+impl Default for VisualizerColorMode {
+    fn default() -> Self {
+        VisualizerColorMode::Solid
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug)]
 pub struct AppConfig {
     #[serde(default)]
     pub language: Language,
     #[serde(default)]
     pub library_paths: Vec<String>,
+    #[serde(default)]
+    pub visualizer_color: VisualizerColorMode,
+    #[serde(default = "default_true")]
+    pub show_logo: bool,
+}
+
+fn default_true() -> bool {
+    true
 }
 
 impl Default for AppConfig {
@@ -29,6 +51,8 @@ impl Default for AppConfig {
         Self {
             language: Language::default(),
             library_paths: vec!["~/Music".to_string()],
+            visualizer_color: VisualizerColorMode::default(),
+            show_logo: true,
         }
     }
 }

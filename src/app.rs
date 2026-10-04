@@ -9,11 +9,16 @@ use std::fs;
 use rand::seq::SliceRandom;
 use rand::thread_rng;
 
+use crate::visualizer::VisualizerMode;
+
 #[derive(Serialize, Deserialize, Debug)]
+#[serde(default)]
 pub struct AppState {
     pub volume: f32,
     pub show_visualizer: bool,
     pub active_tab: LibraryTab,
+    pub visualizer_mode: VisualizerMode,
+    pub show_hotkeys: bool,
 }
 
 impl Default for AppState {
@@ -22,6 +27,8 @@ impl Default for AppState {
             volume: 1.0,
             show_visualizer: true,
             active_tab: LibraryTab::Artists,
+            visualizer_mode: VisualizerMode::Spectrum,
+            show_hotkeys: true,
         }
     }
 }
@@ -139,6 +146,7 @@ pub struct App {
 
     // Visualizer toggle
     pub show_visualizer: bool,
+    pub show_hotkeys: bool,
 
     // Status / Notification
     pub status_message: Option<(String, Instant)>,
@@ -182,11 +190,14 @@ impl App {
         audio.volume = state.volume;
         audio.prev_volume = state.volume;
         
+        let mut visualizer = AudioVisualizer::new(48000);
+        visualizer.mode = state.visualizer_mode;
+
         let welcome_msg = i18n.t("welcome_msg").to_string();
 
         let mut app = Self {
             audio,
-            visualizer: AudioVisualizer::new(48000),
+            visualizer,
             tracks: cached,
             active_tab: state.active_tab,
             focus_panel: FocusPanel::Library,
@@ -203,6 +214,7 @@ impl App {
             is_searching: false,
             search_query: String::new(),
             show_visualizer: state.show_visualizer,
+            show_hotkeys: state.show_hotkeys,
             status_message: Some((welcome_msg, Instant::now())),
             scanner_rx,
             cancel_flag,
@@ -224,6 +236,8 @@ impl App {
             volume: self.audio.volume,
             show_visualizer: self.show_visualizer,
             active_tab: self.active_tab,
+            visualizer_mode: self.visualizer.mode,
+            show_hotkeys: self.show_hotkeys,
         };
         let path = get_state_path();
         if let Some(parent) = path.parent() {

@@ -13,11 +13,11 @@ impl I18n {
         match self.lang {
             Language::English => match key {
                 "window_title" => "Apollo - Terminal Music Player",
-                "library_tab_artists" => "[F1] Artists",
-                "library_tab_albums" => "[F2] Albums",
-                "library_tab_tracks" => "[F3] Tracks",
-                "library_tab_genres" => "[F4] Genres",
-                "library_tab_explorer" => "[F5] Explorer",
+                "library_tab_artists" => "Artists",
+                "library_tab_albums" => "Albums",
+                "library_tab_tracks" => "Tracks",
+                "library_tab_genres" => "Genres",
+                "library_tab_explorer" => "Explorer",
                 "search_placeholder" => "Type to search...",
                 "no_results" => "No results",
                 "scanning" => "Scanning library...",
@@ -33,8 +33,8 @@ impl I18n {
                 "status_visualizer" => "Visualizer mode",
                 "status_visualizer_visible" => "Visualizer visible",
                 "status_visualizer_hidden" => "Visualizer hidden",
-                "status_seek_fwd" => "Seek: +5s",
-                "status_seek_bwd" => "Seek: -5s",
+                "status_seek_fwd" => "Skip: +5s",
+                "status_seek_bwd" => "Skip: -5s",
                 "loop_none" => "None",
                 "loop_track" => "Track",
                 "loop_queue" => "Queue",
@@ -49,7 +49,7 @@ impl I18n {
                 "no_tracks" => "No tracks in library. Place audio files in ~/Music",
                 "albums_count" => "albums",
                 "tracks_count" => "tracks",
-                "tracks_short" => "trk.",
+                "tracks_short" => "tracks",
                 "no_albums" => "No albums found.",
                 "no_filtered_tracks" => "No tracks match the criteria.",
                 "col_artist" => "Artist",
@@ -89,23 +89,23 @@ impl I18n {
                 "format_status" => "Format",
                 "search_footer" => "Search",
                 "search_cancel_hint" => "Press Esc to cancel, Enter to confirm",
-                "hk_play" => " Pause/Play | ",
-                "hk_prev_next" => " Prev/Next | ",
-                "hk_seek" => " Seek ±5s | ",
-                "hk_shuffle" => " Shuffle | ",
-                "hk_loop" => " Loop | ",
-                "hk_volume" => " Volume | ",
-                "hk_search" => " Search | ",
-                "hk_quit" => " Quit",
+                "hk_play" => "Pause/Play",
+                "hk_prev_next" => "Prev/Next",
+                "hk_seek" => "Skip ±5s",
+                "hk_shuffle" => "Shuffle",
+                "hk_loop" => "Loop",
+                "hk_volume" => "Volume",
+                "hk_search" => "Search",
+                "hk_quit" => "Quit",
                 _ => key,
             },
             Language::Polish => match key {
                 "window_title" => "Apollo - Terminalowy Odtwarzacz Muzyki",
-                "library_tab_artists" => "[F1] Wykonawcy",
-                "library_tab_albums" => "[F2] Albumy",
-                "library_tab_tracks" => "[F3] Utwory",
-                "library_tab_genres" => "[F4] Gatunki",
-                "library_tab_explorer" => "[F5] Eksplorator",
+                "library_tab_artists" => "Wykonawcy",
+                "library_tab_albums" => "Albumy",
+                "library_tab_tracks" => "Utwory",
+                "library_tab_genres" => "Gatunki",
+                "library_tab_explorer" => "Eksplorator",
                 "search_placeholder" => "Wpisz aby wyszukać...",
                 "no_results" => "Brak wyników",
                 "scanning" => "Skanowanie biblioteki...",
@@ -137,7 +137,7 @@ impl I18n {
                 "no_tracks" => "Brak utworów w bibliotece. Umieść pliki audio w ~/Music",
                 "albums_count" => "albumy",
                 "tracks_count" => "utwory",
-                "tracks_short" => "utw.",
+                "tracks_short" => "utwory",
                 "no_albums" => "Brak albumów.",
                 "no_filtered_tracks" => "Brak utworów spełniających kryteria.",
                 "col_artist" => "Wykonawca",
@@ -177,16 +177,37 @@ impl I18n {
                 "format_status" => "Format",
                 "search_footer" => "Wyszukaj",
                 "search_cancel_hint" => "Naciśnij Esc aby anulować, Enter aby zatwierdzić",
-                "hk_play" => " Pauza/Play | ",
-                "hk_prev_next" => " Poprz/Nast | ",
-                "hk_seek" => " Skok ±5s | ",
-                "hk_shuffle" => " Shuffle | ",
-                "hk_loop" => " Pętla | ",
-                "hk_volume" => " Głośność | ",
-                "hk_search" => " Szukaj | ",
-                "hk_quit" => " Wyjście",
+                "hk_play" => "Pauza/Play",
+                "hk_prev_next" => "Poprz/Nast",
+                "hk_seek" => "Skok ±5s",
+                "hk_shuffle" => "Shuffle",
+                "hk_loop" => "Pętla",
+                "hk_volume" => "Głośność",
+                "hk_search" => "Szukaj",
+                "hk_quit" => "Wyjście",
                 _ => key,
             },
+        }
+    }
+
+    pub fn pluralize_tracks(&self, count: usize) -> String {
+        match self.lang {
+            Language::English => {
+                if count == 1 {
+                    "track".to_string()
+                } else {
+                    "tracks".to_string()
+                }
+            }
+            Language::Polish => {
+                if count == 1 {
+                    "utwór".to_string()
+                } else if count % 10 >= 2 && count % 10 <= 4 && (count % 100 < 10 || count % 100 >= 20) {
+                    "utwory".to_string()
+                } else {
+                    "utworów".to_string()
+                }
+            }
         }
     }
 }

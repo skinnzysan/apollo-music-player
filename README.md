@@ -67,8 +67,10 @@ Configuration is stored at `~/.config/apollo/config.toml` on Linux.
 
 ```toml
 # Example config.toml
-language = "en" # Available options: "en", "pl"
-library_paths = ["~/Music"]
+language = "en"               # Available options: "en", "pl"
+library_paths = ["~/Music"]   # List of directories to scan for music
+visualizer_color = "solid"    # Available options: "solid" (theme color), "rainbow" (multi-color)
+show_logo = true              # Set to false to hide the Apollo logo and give more space to the library
 ```
 
 ## Keybindings
@@ -88,10 +90,15 @@ library_paths = ["~/Music"]
 | `l` | Toggle Loop mode (None, Track, Queue) |
 | `v` | Toggle visualizer mode (Spectrum, Waveform) |
 | `c` | Show / Hide visualizer |
+| `h` | Show / Hide hotkeys in the UI |
 | `F1` - `F5` | Switch tabs (Artists, Albums, Tracks, Genres, Explorer) |
 | `/` | Search |
 | `Esc` | Cancel search |
 | `q`, `Ctrl+C`| Quit |
+
+## Changelog
+
+See the [CHANGELOG.md](CHANGELOG.md) file for details on new features, bug fixes, and improvements.
 
 ## License
 

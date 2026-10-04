@@ -10,7 +10,9 @@ const MAX_FREQ: f32 = 20000.0;
 const MIN_DB: f32 = -60.0;
 const MAX_DB: f32 = 0.0;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+use serde::{Serialize, Deserialize};
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum VisualizerMode {
     Spectrum,
     Waveform,
