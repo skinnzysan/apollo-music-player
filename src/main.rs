@@ -45,7 +45,7 @@ fn main() -> io::Result<()> {
             println!("Apollo - Terminal Music Player for Linux");
             println!();
             println!("USAGE:");
-            println!("    apollo [DIRECTORY_OR_FILE...]");
+            println!("    apollo [PATH...]     Start player and set PATH as the new default library in config");
             println!();
             println!("OPTIONS:");
             println!("    -h, --help       Print this help information");
