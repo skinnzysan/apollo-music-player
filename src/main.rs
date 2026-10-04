@@ -105,8 +105,10 @@ fn main() -> io::Result<()> {
 
         // Handle user input
         if event::poll(tick_rate)? {
-            if let Event::Key(key) = event::read()? {
-                if key.kind == KeyEventKind::Press {
+            loop {
+                match event::read()? {
+                    Event::Key(key) => {
+                        if key.kind == KeyEventKind::Press {
                     if app.is_searching {
                         match key.code {
                             KeyCode::Esc => {
@@ -233,16 +235,23 @@ fn main() -> io::Result<()> {
                             _ => {}
                         }
                     }
-                }
-            } else if let Event::Mouse(mouse) = event::read()? {
-                match mouse.kind {
-                    crossterm::event::MouseEventKind::ScrollDown => {
-                        app.move_selection_down();
+                        }
                     }
-                    crossterm::event::MouseEventKind::ScrollUp => {
-                        app.move_selection_up();
+                    Event::Mouse(mouse) => {
+                        match mouse.kind {
+                            crossterm::event::MouseEventKind::ScrollDown => {
+                                app.move_selection_down();
+                            }
+                            crossterm::event::MouseEventKind::ScrollUp => {
+                                app.move_selection_up();
+                            }
+                            _ => {}
+                        }
                     }
                     _ => {}
+                }
+                if !event::poll(std::time::Duration::ZERO)? {
+                    break;
                 }
             }
         }
