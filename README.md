@@ -2,7 +2,7 @@
 
 <div align="center">
   <a href="https://rust-lang.org/"><img alt="Static Badge" src="https://img.shields.io/badge/Rust-1.98.1-%23FF7F50?style=for-the-badge&logo=Rust"></a>
-  <img alt="Static Badge" src="https://img.shields.io/badge/version-1.1.0-%23FFD166?style=for-the-badge&logo=githubactions">
+  <img alt="Static Badge" src="https://img.shields.io/badge/version-1.2.0-%23FFD166?style=for-the-badge&logo=githubactions">
   <a href="https://github.com/skinnzysan/apollo-music-player/blob/main/LICENSE"><img alt="Static Badge" src="https://img.shields.io/badge/License-MIT-%2306D6A0?style=for-the-badge&logo=opensourcehardware"></a>
 </div>
 
@@ -17,7 +17,7 @@
 
 ![Demo](docs/demo.gif)
 
-> **Note:** This program was entirely **vibe coded** using antigravity with Gemini 3.1 Pro (Low).
+> **Note:** This program was entirely **vibe coded** using antigravity with Gemini 3.1 Pro (Low) and Claude Opus 5.5 (Medium).
 
 ## Features
 

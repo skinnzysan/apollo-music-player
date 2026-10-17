@@ -1,12 +1,13 @@
 use ratatui::{
     layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
-    text::{Line, Span},
+    text::{Line, Span, Text},
     widgets::{
-        Block, BorderType, Borders, List, ListItem, Paragraph, Row, Table, Wrap,
+        Block, BorderType, Borders, Cell, List, ListItem, Paragraph, Row, Table, Wrap,
     },
     Frame,
 };
+use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
 
 use crate::app::{App, ArtistTreeRow, FocusPanel};
 use crate::audio::LoopMode;
@@ -46,7 +47,10 @@ pub fn draw_ui(frame: &mut Frame, app: &mut App) {
     if show_vis {
         constraints.push(Constraint::Length(vis_height)); // Visualizer
     }
-    constraints.push(Constraint::Length(5));           // Now Playing
+    // Now Playing: borders (2) + track line + progress line + wrapped status lines.
+    // Inner text width = width - borders (2) - horizontal padding (2).
+    let status_line_count = build_status_lines(app, size.width.saturating_sub(4) as usize).len().max(1) as u16;
+    constraints.push(Constraint::Length(4 + status_line_count)); // Now Playing
     
     let footer_height = if app.show_hotkeys {
         (155 + size.width.saturating_sub(1)) / size.width.max(1)
@@ -143,22 +147,32 @@ fn render_library_panel(frame: &mut Frame, app: &mut App, area: Rect) {
         ),
     ];
 
+    let mut tab_label_spans = Vec::new();
     for (i, title) in tab_titles.iter().enumerate() {
         let label = format!(" F{} - {} ", i + 1, title);
         if i == selected_tab_idx {
-            tab_spans.push(Span::styled(
+            tab_label_spans.push(Span::styled(
                 label,
                 Style::default().bg(Color::Cyan).fg(Color::Black).add_modifier(Modifier::BOLD)
             ));
         } else {
-            tab_spans.push(Span::styled(
+            tab_label_spans.push(Span::styled(
                 label,
                 Style::default().bg(Color::DarkGray).fg(Color::White).add_modifier(Modifier::BOLD)
             ));
         }
         if i < tab_titles.len() - 1 {
-            tab_spans.push(Span::raw(" "));
+            tab_label_spans.push(Span::raw(" "));
         }
+    }
+
+    // Only show the tabs if they fit in the title bar (borders + a small margin),
+    // otherwise hide them to avoid clipping.
+    let title_width: usize = tab_spans.iter().map(|s| s.width()).sum();
+    let tabs_width: usize = tab_label_spans.iter().map(|s| s.width()).sum();
+    let available = (area.width as usize).saturating_sub(4);
+    if title_width + tabs_width <= available {
+        tab_spans.extend(tab_label_spans);
     }
 
     let outer_block = Block::default()
@@ -190,7 +204,72 @@ fn render_library_panel(frame: &mut Frame, app: &mut App, area: Rect) {
     }
 }
 
+/// Word-wraps `text` to `width` display columns. Words longer than `width` are hard-split.
+fn wrap_words(text: &str, width: usize) -> Vec<String> {
+    let width = width.max(1);
+    let mut lines = Vec::new();
+    let mut cur = String::new();
+    let mut cur_w = 0;
+    for word in text.split(' ') {
+        let word_w = word.width();
+        let sep = if cur.is_empty() { 0 } else { 1 };
+        if cur_w + sep + word_w <= width {
+            if sep == 1 {
+                cur.push(' ');
+            }
+            cur.push_str(word);
+            cur_w += sep + word_w;
+            continue;
+        }
+        if !cur.is_empty() {
+            lines.push(std::mem::take(&mut cur));
+            cur_w = 0;
+        }
+        for ch in word.chars() {
+            let cw = ch.width().unwrap_or(0);
+            if cur_w + cw > width && !cur.is_empty() {
+                lines.push(std::mem::take(&mut cur));
+                cur_w = 0;
+            }
+            cur.push(ch);
+            cur_w += cw;
+        }
+    }
+    if !cur.is_empty() || lines.is_empty() {
+        lines.push(cur);
+    }
+    lines
+}
+
+/// Wraps `text` after `prefix`; continuation lines are indented to align with the text.
+fn wrap_with_prefix(prefix: &str, text: &str, width: usize) -> Vec<String> {
+    let indent = " ".repeat(prefix.width());
+    wrap_words(text, width.saturating_sub(prefix.width()))
+        .into_iter()
+        .enumerate()
+        .map(|(i, l)| if i == 0 { format!("{}{}", prefix, l) } else { format!("{}{}", indent, l) })
+        .collect()
+}
+
+/// Track row: uses `one_line` if it fits, otherwise wraps the title and puts
+/// the file metadata whole (unwrapped) on its own line below the title.
+fn track_lines(one_line: String, prefix: &str, title: &str, meta: &str, width: usize) -> Vec<String> {
+    if one_line.trim_end().width() <= width {
+        return vec![one_line];
+    }
+    let mut lines = wrap_with_prefix(prefix, title, width);
+    lines.push(format!("{}{}", " ".repeat(prefix.width()), meta));
+    lines
+}
+
+fn styled_item(lines: Vec<String>, style: Style) -> ListItem<'static> {
+    // Style the whole item (not just the text spans) so the selection
+    // highlight spans the full row width.
+    ListItem::new(lines.into_iter().map(Line::from).collect::<Vec<_>>()).style(style)
+}
+
 fn render_artist_tree(frame: &mut Frame, app: &mut App, area: Rect) {
+    let width = area.width as usize;
     let rows = app.get_artist_tree_rows();
     if rows.is_empty() {
         let msg = Paragraph::new(if app.is_scanning {
@@ -223,13 +302,13 @@ fn render_artist_tree(frame: &mut Frame, app: &mut App, area: Rect) {
                     track_count,
                 } => {
                     let icon = if *expanded { " v " } else { " > " };
-                    let text = format!("{}{} ({} {}, {} {})", icon, artist, album_count, app.i18n.t("albums_count"), track_count, app.i18n.pluralize_tracks(*track_count));
+                    let text = format!("{} ({} {}, {} {})", artist, album_count, app.i18n.t("albums_count"), track_count, app.i18n.pluralize_tracks(*track_count));
                     let style = if is_selected {
                         base_style
                     } else {
                         Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)
                     };
-                    ListItem::new(Span::styled(text, style))
+                    styled_item(wrap_with_prefix(icon, &text, width), style)
                 }
                 ArtistTreeRow::AlbumHeader {
                     album,
@@ -240,13 +319,13 @@ fn render_artist_tree(frame: &mut Frame, app: &mut App, area: Rect) {
                 } => {
                     let icon = if *expanded { "   v " } else { "   > " };
                     let yr_str = year.map(|y| format!(" ({})", y)).unwrap_or_default();
-                    let text = format!("{}{}{} [{} {}]", icon, album, yr_str, track_count, app.i18n.pluralize_tracks(*track_count));
+                    let text = format!("{}{} [{} {}]", album, yr_str, track_count, app.i18n.pluralize_tracks(*track_count));
                     let style = if is_selected {
                         base_style
                     } else {
                         Style::default().fg(Color::Yellow)
                     };
-                    ListItem::new(Span::styled(text, style))
+                    styled_item(wrap_with_prefix(icon, &text, width), style)
                 }
                 ArtistTreeRow::TrackItem { track, is_current } => {
                     let marker = if *is_current { " * " } else { "   " };
@@ -273,7 +352,9 @@ fn render_artist_tree(frame: &mut Frame, app: &mut App, area: Rect) {
                         base_style
                     };
 
-                    ListItem::new(Span::styled(line_text, style))
+                    let prefix = format!("    {}{}", marker, trk_no);
+                    let meta = format!("{} | {}", dur, fmt);
+                    styled_item(track_lines(line_text, &prefix, &title, &meta, width), style)
                 }
             }
         })
@@ -284,6 +365,7 @@ fn render_artist_tree(frame: &mut Frame, app: &mut App, area: Rect) {
 }
 
 fn render_albums_view(frame: &mut Frame, app: &mut App, area: Rect) {
+    let width = area.width as usize;
     let rows = app.get_album_tree_rows();
     if rows.is_empty() {
         let msg = Paragraph::new(app.i18n.t("no_albums"))
@@ -315,13 +397,13 @@ fn render_albums_view(frame: &mut Frame, app: &mut App, area: Rect) {
                 } => {
                     let icon = if *expanded { " v " } else { " > " };
                     let yr_str = year.map(|y| format!(" ({})", y)).unwrap_or_default();
-                    let text = format!("{}{}{} - {} [{} {}]", icon, artist, yr_str, album, track_count, app.i18n.pluralize_tracks(*track_count));
+                    let text = format!("{}{} - {} [{} {}]", artist, yr_str, album, track_count, app.i18n.pluralize_tracks(*track_count));
                     let style = if is_selected {
                         base_style
                     } else {
                         Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)
                     };
-                    ListItem::new(Span::styled(text, style))
+                    styled_item(wrap_with_prefix(icon, &text, width), style)
                 }
                 crate::app::AlbumTreeRow::TrackItem { track, is_current } => {
                     let marker = if *is_current { " * " } else { "   " };
@@ -348,7 +430,9 @@ fn render_albums_view(frame: &mut Frame, app: &mut App, area: Rect) {
                         base_style
                     };
 
-                    ListItem::new(Span::styled(line_text, style))
+                    let prefix = format!("    {}{}", marker, trk_no);
+                    let meta = format!("{} | {}", dur, fmt);
+                    styled_item(track_lines(line_text, &prefix, &title, &meta, width), style)
                 }
             }
         })
@@ -368,16 +452,40 @@ fn render_all_tracks_view(frame: &mut Frame, app: &mut App, area: Rect) {
         return;
     }
 
-    let header = Row::new(vec![
-        app.i18n.t("col_artist"),
-        app.i18n.t("col_title"),
-        app.i18n.t("col_album"),
-        app.i18n.t("col_time"),
-        app.i18n.t("col_format"),
-    ])
-    .style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD));
-
     let current_path = app.audio.current_track.as_ref().map(|t| &t.path);
+
+    // Compute exact column widths so cells can be wrapped to them.
+    // On narrow panels, Time/Format columns are dropped and rendered whole
+    // on a new line below the song title instead.
+    let narrow = area.width < 80;
+    let (w_artist, w_title, w_album) = if narrow {
+        let rest = (area.width as usize).saturating_sub(2); // 2 column gaps
+        let a = rest * 30 / 100;
+        let t = rest * 40 / 100;
+        (a, t, rest.saturating_sub(a + t))
+    } else {
+        let rest = (area.width as usize).saturating_sub(7 + 18 + 4); // fixed cols + 4 gaps
+        let a = rest * 25 / 80;
+        let t = rest * 30 / 80;
+        (a, t, rest.saturating_sub(a + t))
+    };
+
+    let header = if narrow {
+        Row::new(vec![
+            app.i18n.t("col_artist"),
+            app.i18n.t("col_title"),
+            app.i18n.t("col_album"),
+        ])
+    } else {
+        Row::new(vec![
+            app.i18n.t("col_artist"),
+            app.i18n.t("col_title"),
+            app.i18n.t("col_album"),
+            app.i18n.t("col_time"),
+            app.i18n.t("col_format"),
+        ])
+    }
+    .style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD));
 
     let rows: Vec<Row> = tracks
         .iter()
@@ -395,32 +503,53 @@ fn render_all_tracks_view(frame: &mut Frame, app: &mut App, area: Rect) {
             };
 
             let prefix = if is_current { "* " } else { "  " };
-            let title_display = format!("{}{}", prefix, t.display_title());
+            let artist_lines = wrap_with_prefix(" ", &t.artist, w_artist);
+            let mut title_lines = wrap_with_prefix(prefix, &t.display_title(), w_title);
+            let album_lines = wrap_words(&t.album, w_album);
 
-            Row::new(vec![
-                format!(" {}", t.artist),
-                title_display,
-                t.album.clone(),
-                t.duration_formatted(),
-                t.format_desc.clone(),
-            ])
-            .style(style)
+            if narrow {
+                // Metadata rendered whole below the title (not wrapped).
+                title_lines.push(format!("{}{} | {}", " ".repeat(prefix.len()), t.duration_formatted(), t.format_desc));
+            }
+
+            let height = artist_lines.len().max(title_lines.len()).max(album_lines.len()) as u16;
+
+            let mut cells = vec![
+                Cell::from(Text::from(artist_lines.into_iter().map(Line::from).collect::<Vec<_>>())),
+                Cell::from(Text::from(title_lines.into_iter().map(Line::from).collect::<Vec<_>>())),
+                Cell::from(Text::from(album_lines.into_iter().map(Line::from).collect::<Vec<_>>())),
+            ];
+            if !narrow {
+                cells.push(Cell::from(t.duration_formatted()));
+                cells.push(Cell::from(t.format_desc.clone()));
+            }
+
+            Row::new(cells).height(height.max(1)).style(style)
         })
         .collect();
 
-    let widths = [
-        Constraint::Percentage(25),
-        Constraint::Percentage(30),
-        Constraint::Percentage(25),
-        Constraint::Length(7),
-        Constraint::Length(18),
-    ];
+    let widths: Vec<Constraint> = if narrow {
+        vec![
+            Constraint::Length(w_artist as u16),
+            Constraint::Length(w_title as u16),
+            Constraint::Length(w_album as u16),
+        ]
+    } else {
+        vec![
+            Constraint::Length(w_artist as u16),
+            Constraint::Length(w_title as u16),
+            Constraint::Length(w_album as u16),
+            Constraint::Length(7),
+            Constraint::Length(18),
+        ]
+    };
 
     let table = Table::new(rows, widths).header(header);
     render_scrollable_table(frame, table, area, app.selected_index, tracks.len());
 }
 
 fn render_genres_view(frame: &mut Frame, app: &mut App, area: Rect) {
+    let width = area.width as usize;
     let rows = app.get_genre_tree_rows();
     if rows.is_empty() {
         let msg = Paragraph::new(app.i18n.t("no_genres"))
@@ -444,13 +573,13 @@ fn render_genres_view(frame: &mut Frame, app: &mut App, area: Rect) {
             match row {
                 crate::app::GenreTreeRow::GenreHeader { genre, expanded, track_count } => {
                     let icon = if *expanded { " v " } else { " > " };
-                    let text = format!("{}{:<25} [{} {}]", icon, genre, track_count, app.i18n.pluralize_tracks(*track_count));
+                    let text = format!("{:<25} [{} {}]", genre, track_count, app.i18n.pluralize_tracks(*track_count));
                     let style = if is_selected {
                         base_style
                     } else {
                         Style::default().fg(Color::Magenta).add_modifier(Modifier::BOLD)
                     };
-                    ListItem::new(Span::styled(text, style))
+                    styled_item(wrap_with_prefix(icon, text.trim_end(), width), style)
                 }
                 crate::app::GenreTreeRow::TrackItem { track, is_current } => {
                     let marker = if *is_current { " * " } else { "   " };
@@ -473,7 +602,9 @@ fn render_genres_view(frame: &mut Frame, app: &mut App, area: Rect) {
                         base_style
                     };
 
-                    ListItem::new(Span::styled(line_text, style))
+                    let prefix = format!("    {}", marker);
+                    let name = format!("{} - {}", artist, title);
+                    styled_item(track_lines(line_text, &prefix, &name, &dur, width), style)
                 }
             }
         })
@@ -484,6 +615,7 @@ fn render_genres_view(frame: &mut Frame, app: &mut App, area: Rect) {
 }
 
 fn render_explorer_view(frame: &mut Frame, app: &mut App, area: Rect) {
+    let width = area.width as usize;
     let items: Vec<ListItem> = app
         .explorer_items
         .iter()
@@ -499,7 +631,7 @@ fn render_explorer_view(frame: &mut Frame, app: &mut App, area: Rect) {
             };
 
             let prefix = if item.is_dir { " [DIR] " } else { " [MUS] " };
-            ListItem::new(Span::styled(format!("{}{}", prefix, item.name), style))
+            styled_item(wrap_with_prefix(prefix, &item.name, width), style)
         })
         .collect();
 
@@ -511,16 +643,10 @@ fn render_scrollable_list(frame: &mut Frame, list: List, area: Rect, selected: u
     if total == 0 {
         return;
     }
-    let height = area.height as usize;
-    let offset = if selected >= height {
-        selected.saturating_sub(height - 1)
-    } else {
-        0
-    };
-
+    // Items can span several lines (wrapping), so let ratatui compute the
+    // scroll offset needed to keep the selected item visible.
     let mut state = ratatui::widgets::ListState::default();
     state.select(Some(selected));
-    *state.offset_mut() = offset;
     frame.render_stateful_widget(list, area, &mut state);
 }
 
@@ -528,16 +654,9 @@ fn render_scrollable_table(frame: &mut Frame, table: Table, area: Rect, selected
     if total == 0 {
         return;
     }
-    let height = area.height.saturating_sub(1) as usize; // account for header
-    let offset = if height > 0 && selected >= height {
-        selected.saturating_sub(height - 1)
-    } else {
-        0
-    };
-
+    // Rows can have variable height (wrapping), so let ratatui handle scrolling.
     let mut state = ratatui::widgets::TableState::default();
     state.select(Some(selected));
-    *state.offset_mut() = offset;
     frame.render_stateful_widget(table, area, &mut state);
 }
 
@@ -767,13 +886,43 @@ fn render_now_playing_panel(frame: &mut Frame, app: &App, area: Rect, is_visuali
 
     // Volume bar
     let vol_percent = (app.audio.volume * 100.0).round() as u32;
-    let vol_str = if app.audio.is_muted {
-        app.i18n.t("volume_muted").to_string()
+    let vol_bar = if app.audio.is_muted {
+        String::new()
     } else {
         let filled_bars = (vol_percent / 10).min(10) as usize;
         let empty_bars = 10 - filled_bars;
-        format!("{}[{}{}] {}%", app.i18n.t("volume"), "█".repeat(filled_bars), "░".repeat(empty_bars), vol_percent)
+        format!("[{}{}] {}%", "█".repeat(filled_bars), "░".repeat(empty_bars), vol_percent)
     };
+    let vol_str_full = if app.audio.is_muted {
+        app.i18n.t("volume_muted").to_string()
+    } else {
+        format!("{}{}", app.i18n.t("volume"), vol_bar)
+    };
+
+    // If the full line doesn't fit, drop the "Playing:" / "Volume:" text labels
+    // and keep only the icon / bar.
+    let full_len = state_str.chars().count() + track_info.chars().count() + vol_str_full.chars().count() + 1;
+    let compact = full_len > inner.width as usize;
+
+    let (state_str, vol_str) = if compact {
+        // "[>] Playing: " -> "[>] "
+        let icon = match state_str.find(']') {
+            Some(idx) => format!("{} ", &state_str[..=idx]),
+            None => state_str.to_string(),
+        };
+        // "Volume: [MUTED]" -> "[MUTED]", "Volume: [███░] 50%" -> "[███░] 50%"
+        let vol = if app.audio.is_muted {
+            let muted = app.i18n.t("volume_muted");
+            muted.find('[').map(|i| muted[i..].to_string()).unwrap_or_else(|| muted.to_string())
+        } else {
+            vol_bar
+        };
+        (icon, vol)
+    } else {
+        (state_str.to_string(), vol_str_full)
+    };
+
+    let state_indicator = Span::styled(state_str.clone(), state_indicator.style);
 
     let left_len = state_str.chars().count() + track_info.chars().count();
     let vol_len = vol_str.chars().count();
@@ -803,6 +952,19 @@ fn render_now_playing_panel(frame: &mut Frame, app: &App, area: Rect, is_visuali
         Span::styled(time_suffix, Style::default().fg(Color::Cyan)),
     ]);
 
+    let mut lines = vec![line1, line2];
+    lines.extend(build_status_lines(app, inner.width as usize));
+
+    let p = Paragraph::new(lines);
+    frame.render_widget(p, inner);
+}
+
+/// Builds the loop / shuffle / queue / format / alert info, wrapping whole
+/// segments onto new lines (at the " | " separators) when they don't fit.
+fn build_status_lines(app: &App, width: usize) -> Vec<Line<'static>> {
+    let width = width.max(1);
+    let current = app.audio.current_track.as_ref();
+
     // Metadata & Status: [Zapętlenie: Utwór] | [Mieszanie: WŁ] | Kolejka: 2/10 | Format: FLAC 96kHz 24-bit
     let loop_status = format!("[{}: {}]", app.i18n.t("loop_status"), app.i18n.t(app.audio.loop_mode.display_label()));
     let shuffle_status = format!("[{}: {}]", app.i18n.t("shuffle_status"), if app.audio.shuffle { app.i18n.t("on") } else { app.i18n.t("off") });
@@ -816,24 +978,67 @@ fn render_now_playing_panel(frame: &mut Frame, app: &App, area: Rect, is_visuali
         .map(|t| format!("{}: {}", app.i18n.t("format_status"), t.format_desc))
         .unwrap_or_else(|| format!("{}: -", app.i18n.t("format_status")));
 
-    let mut line3_spans = vec![
+    let segments: Vec<Span<'static>> = vec![
         Span::styled(loop_status, Style::default().fg(if app.audio.loop_mode != LoopMode::Off { Color::Green } else { Color::DarkGray })),
-        Span::styled(" | ", Style::default().fg(Color::DarkGray)),
         Span::styled(shuffle_status, Style::default().fg(if app.audio.shuffle { Color::Green } else { Color::DarkGray })),
-        Span::styled(" | ", Style::default().fg(Color::DarkGray)),
         Span::styled(queue_status, Style::default().fg(Color::Reset)),
-        Span::styled(" | ", Style::default().fg(Color::DarkGray)),
         Span::styled(format_status, Style::default().fg(Color::Yellow)),
     ];
 
-    if let Some(status) = app.get_status() {
-        line3_spans.push(Span::styled(" | ", Style::default().fg(Color::DarkGray)));
-        line3_spans.push(Span::styled("[i]", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)));
-        line3_spans.push(Span::styled(format!(" {}", status), Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)));
+    let sep = || Span::styled(" | ", Style::default().fg(Color::DarkGray));
+    let sep_w = 3;
+
+    let mut lines: Vec<Line<'static>> = Vec::new();
+    let mut cur: Vec<Span<'static>> = Vec::new();
+    let mut cur_w = 0usize;
+
+    for seg in segments {
+        let w = seg.width();
+        if !cur.is_empty() && cur_w + sep_w + w > width {
+            lines.push(Line::from(std::mem::take(&mut cur)));
+            cur_w = 0;
+        }
+        if !cur.is_empty() {
+            cur.push(sep());
+            cur_w += sep_w;
+        }
+        cur.push(seg);
+        cur_w += w;
     }
 
-    let p = Paragraph::new(vec![line1, line2, Line::from(line3_spans)]);
-    frame.render_widget(p, inner);
+    if let Some(status) = app.get_status() {
+        let alert_style = Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD);
+        let icon = "[i] ";
+        let alert_w = icon.width() + status.width();
+
+        if alert_w + sep_w + cur_w <= width && !cur.is_empty() {
+            // Fits on the current line.
+            cur.push(sep());
+            cur.push(Span::styled(icon.trim_end().to_string(), alert_style));
+            cur.push(Span::styled(format!(" {}", status), alert_style));
+        } else {
+            // Put the alert on its own line(s), word-wrapping it if needed.
+            if !cur.is_empty() {
+                lines.push(Line::from(std::mem::take(&mut cur)));
+            }
+            for (i, l) in wrap_with_prefix(icon, status, width).into_iter().enumerate() {
+                if i == 0 {
+                    let rest = l[icon.len()..].to_string();
+                    lines.push(Line::from(vec![
+                        Span::styled(icon.trim_end().to_string(), alert_style),
+                        Span::styled(format!(" {}", rest), alert_style),
+                    ]));
+                } else {
+                    lines.push(Line::from(Span::styled(l, alert_style)));
+                }
+            }
+        }
+    }
+
+    if !cur.is_empty() {
+        lines.push(Line::from(cur));
+    }
+    lines
 }
 
 fn render_footer(frame: &mut Frame, app: &App, area: Rect) {

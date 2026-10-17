@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.0] - 2026-10-17
+
+### Added
+- **Text Wrapping in Library**: Long artist, album, track, genre and file names now wrap onto additional lines instead of being clipped. Applies to all tabs (Artists, Albums, Tracks, Genres, Explorer).
+- **Metadata Below Title**: When a track row doesn't fit on one line, its file metadata (duration, format) is rendered whole on a new line below the song name. In the Tracks tab on narrow panels (< 80 columns), the Time/Format columns are folded under the title.
+- **Wrapping Status Info**: The loop / shuffle / queue / format info and `[i]` alerts in the "Now Playing" panel now wrap at the `|` separators, and the panel grows in height to fit them.
+
+### Changed
+- **Responsive Library Tabs**: The `F1`-`F5` tab labels in the library title bar are hidden when the panel is too narrow to fit them, instead of clipping. Shortcuts keep working.
+- **Compact Now Playing Labels**: On narrow panels the "Playing:" / "Volume:" text labels are dropped, leaving only the state icon (e.g. `[>]`) and the volume bar.
+- **Full-Width Selection Highlight**: The selected row highlight now spans the full width of the library panel, including all lines of wrapped items.
+
+### Fixed
+- **Alerts Clipping**: Status alerts in the "Now Playing" panel no longer get cut off when the terminal is narrow.
+- **Scrolling with Multi-Line Rows**: Scrolling now correctly keeps the selected item visible when rows span multiple lines.
+
 ## [1.1.0] - 2026-10-04
 
 ### Added
